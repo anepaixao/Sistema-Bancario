@@ -29,7 +29,7 @@ void listarContas(Conta *contas, int total);
 // Bloqueia uma conta específica
 void bloquearConta(Conta *contas, int total);
 
-// Calcula o saldo total do banco de forma recursiva
+// Calcula o saldo total do banco
 float calcularSaldoRecursivo(Conta *contas, int indice, int total);
 
 #endif
