@@ -26,3 +26,21 @@ int main(void) {
 
     return 0;
 }
+
+//Parte do usuario///
+
+int main(void) {
+    char escolhar[20];  
+   
+    login();
+    tela_principal();
+    
+    
+    puts("DIGITE A OPÇÃO QUE DESEJA: "); 
+    scanf(" %[^\n]", escolhar);
+  
+    opcoes(escolhar);
+  
+    printf("Obrigada por usar o banco!");
+    return 0;
+}
