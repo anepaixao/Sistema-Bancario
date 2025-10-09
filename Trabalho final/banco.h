@@ -8,7 +8,8 @@ typedef struct {
     int numeroConta;
     char nome[50];
     char cpf[15];
-    char senha[20];
+    char senha[7]; // somente números, até 6 dígitos + '\0'
+    char agencia[20]; // nome/código da agência
     float saldo;
     int status; // 1 = ativa, 0 = bloqueada
 } Conta;
@@ -19,6 +20,10 @@ typedef struct {
 
 // Exibe o menu do administrador
 void menuAdministrador();
+
+// Autenticação do administrador
+// Retorna 1 se autenticado, 0 caso contrário
+int autenticarAdministrador(void);
 
 // Cria uma nova conta bancária
 void criarConta(Conta *contas, int *total);
