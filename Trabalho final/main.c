@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "banco.h" 
+#include "cliente.c"
 
 int main(void) {
     int opcao;
