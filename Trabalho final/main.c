@@ -22,7 +22,7 @@ int main(void) {
                 printf("Encerrando o sistema...\n");
                 break;
             default:
-                printf("Opção inválida. Tente novamente.\n");
+                printf("Opcao invalida. Tente novamente.\n");
         }
     } while (opcao != 0);
 

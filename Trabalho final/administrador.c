@@ -126,7 +126,7 @@ void criarConta(Conta *contas, int *total) {
 
     // Ler e validar senha: somente números,com 6 dígitos
     while (1) {
-        printf("Senha (somente números, com 6 digitos): ");
+        printf("Senha (somente numeros, com 6 digitos): ");
         if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
             printf("Erro na leitura da senha. Tente novamente.\n");
             continue;
@@ -168,7 +168,7 @@ void criarConta(Conta *contas, int *total) {
             int len1 = (int)strlen(senha1);
             int len2 = (int)strlen(senha2);
             if (len1 != 6 || len2 != 6) {
-                printf("Senha invalida. A senha e a confirmacao devem ter exatamente 6 dígitos.\n");
+                printf("Senha invalida. A senha e a confirmacao devem ter exatamente 6 digitos.\n");
                 continue;
             }
             int ok = 1;
@@ -209,7 +209,7 @@ void listarContas(Conta *contas, int total) {
     }
 
     for (int i = 0; i < total; i++) {
-     printf("Conta: %d | Agência: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
+     printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
          contas[i].numeroConta,
          contas[i].agencia,
          contas[i].nome,

@@ -1,9 +1,9 @@
 #ifndef BANCO_H
 #define BANCO_H
 
-// ============================
+
 // Estrutura base
-// ============================
+
 typedef struct {
     int numeroConta;
     char nome[50];
@@ -14,9 +14,9 @@ typedef struct {
     int status; // 1 = ativa, 0 = bloqueada
 } Conta;
 
-// ============================
+
 // Funções do Administrador
-// ============================
+
 
 // Exibe o menu do administrador
 void menuAdministrador();
