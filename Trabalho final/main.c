@@ -6,15 +6,17 @@ int main(void) {
     int opcao;
 
     do {
-        printf("\n===== SISTEMA BANCÁRIO =====\n");
-        printf("1. Acessar módulo do Administrador\n");
+        printf("\n===== SISTEMA BANCARIO =====\n");
+        printf("1. Acessar modulo do Administrador\n");
         printf("0. Sair\n");
-        printf("Escolha uma opção: ");
+        printf("Escolha uma opcao: ");
         scanf("%d", &opcao);
 
         switch (opcao) {
             case 1:
-                menuAdministrador();
+                if (autenticarAdministrador()) {
+                    menuAdministrador();
+                }
                 break;
             case 0:
                 printf("Encerrando o sistema...\n");
