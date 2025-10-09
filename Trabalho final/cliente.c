@@ -1,4 +1,4 @@
-
+#include "cliente.h"
 
 #define TAM 100
 
