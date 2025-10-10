@@ -1,22 +1,23 @@
 # 💰 Sistema Bancário
 
-Projeto desenvolvido na disciplina de Linguagem de Programação II.
+Projeto desenvolvido para disciplina de Linguagem de Programação II.
 
 ## 👥 Equipe
-- Ane Caroline
+- Ane Paixão
 - Laura Luiza
 
 ## 🧱 Estrutura
 - **main.c:** menu principal (cliente e administrador)
-- **banco.c:** funções de operações bancárias
-- **banco.h:** definições e protótipos
+- **administrador.c:** funções de operações bancárias do admin
+- **cliente.c:** funções de operações bancarias do cliente
+- **cliente.h:** definições e protótipos do clinte
 
 ## 🔑 Funções implementadas
 - Criar conta, depositar, sacar, consultar saldo
-- Excluir e bloquear contas (modo administrador)
-- Soma total de saldos (função recursiva)
+- Bloquear/desbloquear contas (modo administrador)
+- Soma total de saldos
 
 ## ⚙️ Como compilar
 ```bash
-gcc main.c banco.c -o banco
-./banco
+gcc main.c administrador.c cliente.c -o banco.exe
+./banco.exe

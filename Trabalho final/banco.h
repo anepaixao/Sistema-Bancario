@@ -8,8 +8,8 @@ typedef struct {
     int numeroConta;
     char nome[50];
     char cpf[15];
-    char senha[7]; // somente números, até 6 dígitos + '\0'
-    char agencia[20]; // nome/código da agência
+    char senha[7]; // somente números, 6 dígitos + '\0'
+    char agencia[20]; // código da agência
     float saldo;
     int status; // 1 = ativa, 0 = bloqueada
 } Conta;
@@ -33,6 +33,9 @@ void listarContas(Conta *contas, int total);
 
 // Bloqueia uma conta específica
 void bloquearConta(Conta *contas, int total);
+
+// Desbloqueia uma conta (define status = 1)
+void desbloquearConta(Conta *contas, int total);
 
 // Calcula o saldo total do banco
 float calcularSaldoRecursivo(Conta *contas, int indice, int total);

@@ -123,28 +123,6 @@ void criarConta(Conta *contas, int *total) {
             printf("CPF invalido. Por favor, verifique e tente novamente.\n");
         }
     }
-
-    // Ler e validar senha: somente números,com 6 dígitos
-    while (1) {
-        printf("Senha (somente numeros, com 6 digitos): ");
-        if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-            printf("Erro na leitura da senha. Tente novamente.\n");
-            continue;
-        }
-        buffer[strcspn(buffer, "\n")] = '\0';
-        int len = (int)strlen(buffer);
-        int ok = 1;
-        if (len == 0 || len > 6) ok = 0;
-        for (int k = 0; k < len && ok; k++) if (!isdigit((unsigned char)buffer[k])) ok = 0;
-        if (!ok) {
-            printf("Senha invalida. Deve conter apenas numeros e 6 caracteres.\n");
-            continue;
-        }
-        // armazenar na conta (termina com '\0')
-        strncpy(contas[*total].senha, buffer, sizeof(contas[*total].senha)-1);
-        contas[*total].senha[sizeof(contas[*total].senha)-1] = '\0';
-        break;
-    }
         // Ler e validar senha: exatamente 6 dígitos e confirmação
         while (1) {
             char senha1[16];
@@ -237,6 +215,24 @@ void bloquearConta(Conta *contas, int total) {
     printf("Conta nao encontrada!\n");
 }
 
+// Função para desbloquear conta
+void desbloquearConta(Conta *contas, int total) {
+    int numero;
+    printf("\n=== Desbloquear Conta ===\n");
+    printf("Digite o número da conta: ");
+    scanf("%d", &numero);
+
+    for (int i = 0; i < total; i++) {
+        if (contas[i].numeroConta == numero) {
+            contas[i].status = 1;
+            printf("Conta %d desbloqueada!\n", numero);
+            return;
+        }
+    }
+
+    printf("Conta não encontrada!\n");
+}
+
 // Função calcular o saldo total
 float calcularSaldoRecursivo(Conta *contas, int indice, int total) {
     if (indice == total)
@@ -264,6 +260,7 @@ void menuAdministrador() {
         printf("2 - Listar Contas\n");
         printf("3 - Bloquear Conta\n");
         printf("4 - Mostrar Saldo Total\n");
+           printf("5 - Desbloquear Conta\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
         scanf("%d", &opcao);
@@ -286,6 +283,9 @@ void menuAdministrador() {
             case 3:
                 bloquearConta(contas, total);
                 break;
+               case 5:
+                   desbloquearConta(contas, total);
+                   break;
             case 4:
                 printf("Saldo total no banco: R$ %.2f\n",
                        calcularSaldoRecursivo(contas, 0, total));
