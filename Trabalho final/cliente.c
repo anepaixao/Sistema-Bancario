@@ -22,13 +22,6 @@ int login() {
 
 int tela_principal() {
     
-    char *agencia = (char *) malloc(TAM * sizeof(char));
-    if(agencia == NULL) {
-        puts("ERRO");
-        system("PAUSE");
-        exit(1);
-    }
-    
     strcpy(usuario.agencia, "001 - AGENCIA DO CENTRO");
     char cabecalho[80];
     strcpy(cabecalho, "AGENCIA:");
@@ -38,26 +31,26 @@ int tela_principal() {
     puts("\nEXTRATO\t DEPOSITO\t SAQUE\t TRANSFERENCIA\n\n");
     puts("\noutras opcões\n");
     
-    free(agencia);
+    
     return 0;
 }
 
-double deposito(double n, int interacoes){
 
-if(interacoes <= 0){
-return usuario.saldo;
-}
-else{
-
-usuario.saldo += n;
-printf("+ R$ %.2f\n", n); 
-return deposito(n, interacoes - 1);
-}
+double deposito(double valor) {
+    
+    usuario.saldo += valor;
+    
+    printf("+ R$ %.2f\n", valor);
+    
+    return usuario.saldo;
 }
 
 void pix_aleatorio(){
-sprintf(usuario.pix, "%s@banco%s.com", usuario.agencia, usuario.cpf);
-printf("Nova chave PIX gerada: %s\n", usuario.pix);
+    
+    sprintf(usuario.pix, "%s@banco%s.com", usuario.agencia, usuario.cpf);
+    
+    printf("Nova chave PIX gerada: %s\n", usuario.pix);
+    
 }
 
 int pix_cadastro(){
@@ -66,75 +59,86 @@ int b;
 char numero[12];  
 char email[50];
 
-printf("Escolha o que voce quer cadastrar: 1 - CPF\t 2 - Numero\t 3 - Email\t");
-scanf("%d", &b);  
+    printf("Escolha o que voce quer cadastrar: 1 - CPF\t 2 - Numero\t 3 - Email\t");
+    scanf("%d", &b);  
 
-switch(b){
+    switch(b){
 
-case 1:
-printf("%s agora é sua nova chave\n", usuario.cpf);
-strcpy(usuario.pix, usuario.cpf);
-break;
+        case 1:
+        
+            printf("%s agora é sua nova chave\n", usuario.cpf);
+            strcpy(usuario.pix, usuario.cpf);
+            
+        break;
 
-case 2:
-printf("Digite seu numero: \n");
-scanf("%[^\n]", numero);
-printf("%s é sua nova chave agora\n", numero);
-strcpy(usuario.pix, numero); 
-break;
+        case 2:
+        
+            printf("Digite seu numero: \n");
+            scanf("%[^\n]", numero);
+            printf("%s é sua nova chave agora\n", numero);
+            strcpy(usuario.pix, numero);
+            
+        break;
 
-case 3:
-printf("Digite seu email: \n");
-scanf("%s\n", email);
-printf("%s é agora sua nova chave", email);
-strcpy(usuario.pix, email); 
-break;
+        case 3:
+        
+            printf("Digite seu email: \n");
+            scanf("%s\n", email);
+            printf("%s é agora sua nova chave", email);
+            strcpy(usuario.pix, email);
+            
+        break;
 
-default:
+    default:
+    
 printf("Opção inválida!\n");
+
 }
 
-return 0;
+    return 0;
 }
 
 int pix_cadastrados(){
 
-if(strlen(usuario.pix) == 0) {
-printf("Nenhuma chave PIX cadastrada.\n");
-} 
-else {
-printf("Chave PIX cadastrada: %s\n", usuario.pix);
-}
+    if(strlen(usuario.pix) == 0) {
+        
+        printf("Nenhuma chave PIX cadastrada.\n");
+    }
+    
+    else {
+        
+        printf("Chave PIX cadastrada: %s\n", usuario.pix);
+    }
 
-return 0;
+    return 0;
 }
 
 void qr_code(){
-printf("\n");
-printf("/////////////////////// QR CODE /////////////////////\n");
-printf("\n");
-printf("|||| |||||||  |||||| ||         ||||  ||||||||| ||||| ||\n");
-printf("||||                 ||         ||||                  ||\n");
-printf("||||                 ||         ||||                  ||\n");
-printf("||||                 ||         ||||                  ||\n");
-printf("||||                 ||         ||||                  ||\n");
-printf("|||| |||||||  |||||| ||         ||||                  ||\n");
-printf("                                ||||                  ||\n");
-printf("  |||| |||||||||| |||           ||||                  ||\n");
-printf("    ||     ||||||  |||          ||||  ||||||||| ||||| ||\n");
-printf(" ||||||      ||||||||||||||             |||||||||||  || \n");
-printf("    |||||||||||  ||||||||||||  ||||||           ||||||||\n");
-printf("    ||||                       ||||||                   \n");
-printf("    ||||                       ||||||  |||||||||||  |||||\n");
-printf("    ||||                       ||||||  |||||           ||\n");
-printf("    ||||                       ||||||  |||||           ||\n");
-printf("    ||||                       ||||||  |||||           ||\n");
-printf("    ||||                       ||||||  |||||           ||\n");
-printf("    ||||                       ||||||  |||||| |||||||| ||\n");
-printf("    ||||                       ||||||                    \n");
-printf("    |||||   ||||||||||||   ||||||||||           ||||||   \n");
-printf("\n");
-printf("Escaneie com a camera do celular ou o app do banco\n\n");
+    printf("\n");
+    printf("/////////////////////// QR CODE /////////////////////\n");
+    printf("\n");
+    printf("|||| |||||||  |||||| ||         ||||  ||||||||| ||||| ||\n");
+    printf("||||                 ||         ||||                  ||\n");
+    printf("||||                 ||         ||||                  ||\n");
+    printf("||||                 ||         ||||                  ||\n");
+    printf("||||                 ||         ||||                  ||\n");
+    printf("|||| |||||||  |||||| ||         ||||                  ||\n");
+    printf("                                ||||                  ||\n");
+    printf("  |||| |||||||||| |||           ||||                  ||\n");
+    printf("    ||     ||||||  |||          ||||  ||||||||| ||||| ||\n");
+    printf(" ||||||      ||||||||||||||             |||||||||||  || \n");
+    printf("    |||||||||||  ||||||||||||  ||||||           ||||||||\n");
+    printf("    ||||                       ||||||                   \n");
+    printf("    ||||                       ||||||  |||||||||||  |||||\n");
+    printf("    ||||                       ||||||  |||||           ||\n");
+    printf("    ||||                       ||||||  |||||           ||\n");
+    printf("    ||||                       ||||||  |||||           ||\n");
+    printf("    ||||                       ||||||  |||||           ||\n");
+    printf("    ||||                       ||||||  |||||| |||||||| ||\n");
+    printf("    ||||                       ||||||                    \n");
+    printf("    |||||   ||||||||||||   ||||||||||           ||||||   \n");
+    printf("\n");
+    printf("Escaneie com a camera do celular ou o app do banco\n\n");
 
 }
 
@@ -175,36 +179,26 @@ void boleto(){
 }
 
 int extrato(){
-printf("CPF - %s\n", usuario.cpf);
-printf("Saldo atual - R$ %f\n", usuario.saldo);
-printf("Nenhuma compra foi efetuada ate agora");
+    
+    printf("CPF - %s\n", usuario.cpf);
+    printf("Saldo atual - R$ %f\n", usuario.saldo);
+    printf("Nenhuma compra foi efetuada ate agora");
 
 return 0;
 }
 
-double saque(double valor, int max_tentativas) {
-    
-    if(max_tentativas <= 0) {
-        printf("Acabaram as tentativas!\n");
-        return usuario.saldo;
+double saque(double valor) {
+    int tentativas = 3;
+    while (tentativas > 0) {
+        
+        if (valor <= usuario.saldo && valor > 0) {
+            usuario.saldo -= valor;
+            return usuario.saldo;
+        }
+        tentativas--;
     }
-    
-    if(valor <= 0) {
-        printf("Valor deve ser positivo!\n");
-        return usuario.saldo;
-    }
-    
-    if(valor > usuario.saldo) {
-        printf("Saldo insuficiente! Digite outro valor (%d tentativas): ", max_tentativas - 1);
-        scanf("%lf", &valor);
-        return saque(valor, max_tentativas - 1);
-    }
-    
-    usuario.saldo -= valor;
-    printf("Sacado: R$ %.2f | Saldo: R$ %.2f\n", valor, usuario.saldo);
     return usuario.saldo;
 }
-
 int opcoes(char *escolha) {
     double valor; 
     char transferencia[20] = "";
@@ -247,14 +241,13 @@ int opcoes(char *escolha) {
         printf("Digite o valor a ser depositado: ");
         scanf("%lf", &valor);
         
-        double novo_saldo = deposito(valor, 1);
+        double novo_saldo = deposito(valor);
         printf("Operação concluída! Saldo final: R$ %.2f\n", novo_saldo);
         }
     }
     else if(strcmp(escolha, "SAQUE") == 0) {
         printf("Digite o valor a ser sacado: ");
         scanf("%lf", &valor);
-        saque(valor, 1);
     }
     else if(strcmp(escolha, "TRANSFERENCIA") == 0) {
         printf("Transferencia selecionada\n");
