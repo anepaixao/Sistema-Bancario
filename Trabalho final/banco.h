@@ -18,26 +18,28 @@ typedef struct {
 // Funções do Administrador
 
 
-// Exibe o menu do administrador
-void menuAdministrador();
+// Autentica o administrador (retorna 1 se ok, 0 caso contrário)
+int adminAutenticar(void);
 
-// Autenticação do administrador
-// Retorna 1 se autenticado, 0 caso contrário
-int autenticarAdministrador(void);
+// Exibe o menu principal do módulo administrador
+void adminMenu(void);
 
 // Cria uma nova conta bancária
-void criarConta(Conta *contas, int *total);
+void adminCriarConta(Conta *contas, int *total);
 
-// Lista todas as contas cadastradas
-void listarContas(Conta *contas, int total);
+// Callback de filtro: retorna 1 se deve exibir a conta, 0 caso contrário
+typedef int (*ContaFiltro)(const Conta *c);
 
-// Bloqueia uma conta específica
-void bloquearConta(Conta *contas, int total);
+// Lista contas (se filtro NULL, exibe todas)
+void adminListarContas(Conta *contas, int total, ContaFiltro filtro);
 
-// Desbloqueia uma conta (define status = 1)
-void desbloquearConta(Conta *contas, int total);
+// Bloqueia uma conta (status=0)
+void adminBloquearConta(Conta *contas, int total);
 
-// Calcula o saldo total do banco
-float calcularSaldoRecursivo(Conta *contas, int indice, int total);
+// Desbloqueia uma conta (status=1)
+void adminDesbloquearConta(Conta *contas, int total);
+
+// Calcula saldo total (versão recursiva)
+float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total);
 
 #endif

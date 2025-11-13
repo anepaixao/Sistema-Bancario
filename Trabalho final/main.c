@@ -20,7 +20,7 @@ int main(void) {
 
         switch (opcao) {
             case 1:
-                if (autenticarAdministrador()) menuAdministrador();
+                if (adminAutenticar()) adminMenu();
                 break;
             case 2: {
                 char escolha[64] = "";
