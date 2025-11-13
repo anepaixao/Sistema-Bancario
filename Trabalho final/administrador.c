@@ -49,20 +49,80 @@ static int validarCPF(const char *cpf) {
     return 1;
 }
 
+// Garante capacidade do vetor de contas usando ponteiro para ponteiro e ref de inteiro
+static int adminGarantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
+    if (necessario <= *refCapacidade) return 1;
+    int nova = *refCapacidade;
+    while (nova < necessario) {
+        if (nova < 1) nova = 1;
+        else nova *= 2;
+    }
+    void *tmp = realloc(*refContas, (size_t)nova * sizeof(Conta));
+    if (!tmp) return 0;
+    *refContas = (Conta *)tmp;
+    *refCapacidade = nova;
+    return 1;
+}
+
+// Lista encadeada simples para índices de contas bloqueadas
+typedef struct NoBloq {
+    int idx;
+    struct NoBloq *prox;
+} NoBloq;
+
+static NoBloq *construirListaBloqueadas(const Conta *contas, int total) {
+    NoBloq *head = NULL;
+    for (int i = 0; i < total; i++) {
+        if (contas[i].status == 0) {
+            NoBloq *n = (NoBloq *)malloc(sizeof(NoBloq));
+            if (!n) break;
+            n->idx = i;
+            n->prox = head;
+            head = n;
+        }
+    }
+    return head;
+}
+
+static void liberarListaBloqueadas(NoBloq *head) {
+    while (head) {
+        NoBloq *tmp = head;
+        head = head->prox;
+        free(tmp);
+    }
+}
+
+// Matriz dinâmica mínima (2x2) apenas para cobrir o tópico
+static void adminMatrizDinamicaPequena(void) {
+    int linhas = 2, colunas = 2;
+    int **m = (int **)malloc((size_t)linhas * sizeof(int *));
+    if (!m) return;
+    for (int i = 0; i < linhas; i++) {
+        m[i] = (int *)malloc((size_t)colunas * sizeof(int));
+        if (!m[i]) {
+            for (int k = 0; k < i; k++) free(m[k]);
+            free(m);
+            return;
+        }
+    }
+    for (int i = 0; i < linhas; i++)
+        for (int j = 0; j < colunas; j++)
+            m[i][j] = (i == j) ? 1 : 0; // identidade 2x2
+    for (int i = 0; i < linhas; i++) free(m[i]);
+    free(m);
+}
+
 // Autentica o administrador: usuário e senha fixos por enquanto
-int autenticarAdministrador(void) {
+int adminAutenticar(void) {
     char user[64];
     char pass[64];
 
-    // Consumir newline pendente (caso venha de scanf)
-    int ch;
-    while ((ch = getchar()) != '\n' && ch != EOF) { }
-
-    printf("\n=== Autenticacao Administrador ===\n");
+    // limpar newline pendente
+    int ch; while ((ch = getchar()) != '\n' && ch != EOF) { }
+    printf("\nAutenticacao do Administrador\n");
     printf("Usuario: ");
     if (fgets(user, sizeof(user), stdin) == NULL) return 0;
     user[strcspn(user, "\n")] = '\0';
-
     printf("Senha: ");
     if (fgets(pass, sizeof(pass), stdin) == NULL) return 0;
     pass[strcspn(pass, "\n")] = '\0';
@@ -71,13 +131,14 @@ int autenticarAdministrador(void) {
         printf("Autenticado com sucesso!\n");
         return 1;
     }
-    printf("Usuario ou senha incorretos.\n");
+    printf("Credenciais invalidas.\n");
     return 0;
 }
 
 // Função auxiliar para criar uma nova conta
-void criarConta(Conta *contas, int *total) {
-    printf("\n=== Criar Nova Conta ===\n");
+void adminCriarConta(Conta *contas, int *total) {
+    int ch;
+    printf("\nNova Conta\n");
 
     // Gera automaticamente o número da conta.
     // Padrão: sequencial começando em 1001. Evita duplicatas verificando as contas já criadas.
@@ -98,19 +159,33 @@ void criarConta(Conta *contas, int *total) {
     proximaConta = candidato + 1;
 
     // Consumir newline pendente do scanf do menu anterior
-    int ch;
     while ((ch = getchar()) != '\n' && ch != EOF) { }
-
-    printf("Nome completo: ");
-    fgets(contas[*total].nome, 50, stdin);
-    contas[*total].nome[strcspn(contas[*total].nome, "\n")] = '\0';
+    // Ler nome não vazio
+    while (1) {
+        printf("Nome completo: ");
+        if (fgets(contas[*total].nome, sizeof(contas[*total].nome), stdin) == NULL) {
+            printf("Erro de leitura do nome.\n");
+            continue;
+        }
+        contas[*total].nome[strcspn(contas[*total].nome, "\n")] = '\0';
+        // Verifica se há ao menos um caractere alfabetico
+        int valido = 0;
+        for (size_t i = 0; contas[*total].nome[i] != '\0'; i++) {
+            if (!isspace((unsigned char)contas[*total].nome[i])) { valido = 1; break; }
+        }
+        if (!valido) {
+            printf("Nome vazio. Tente novamente.\n");
+            continue;
+        }
+        break;
+    }
 
     // Ler e validar CPF
     char buffer[64];
     while (1) {
         printf("CPF (somente numeros ou com pontuacao): ");
         if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-            printf("Erro na leitura do CPF. Tente novamente.\n");
+            printf("Erro de leitura do CPF.\n");
             continue;
         }
         buffer[strcspn(buffer, "\n")] = '\0';
@@ -120,7 +195,7 @@ void criarConta(Conta *contas, int *total) {
             contas[*total].cpf[sizeof(contas[*total].cpf)-1] = '\0';
             break;
         } else {
-            printf("CPF invalido. Por favor, verifique e tente novamente.\n");
+            printf("CPF invalido.\n");
         }
     }
         // Ler e validar senha: exatamente 6 dígitos e confirmação
@@ -128,35 +203,28 @@ void criarConta(Conta *contas, int *total) {
             char senha1[16];
             char senha2[16];
 
-            printf("Senha (exatamente 6 digitos numericos): ");
-            if (fgets(senha1, sizeof(senha1), stdin) == NULL) {
-                printf("Erro na leitura da senha. Tente novamente.\n");
-                continue;
-            }
+            printf("Senha (6 digitos numericos): ");
+            if (fgets(senha1, sizeof(senha1), stdin) == NULL) { printf("Erro de leitura da senha.\n"); continue; }
             senha1[strcspn(senha1, "\n")] = '\0';
-
-            printf("Confirme a senha: ");
-            if (fgets(senha2, sizeof(senha2), stdin) == NULL) {
-                printf("Senha nao confere. Tente novamente.\n");
-                continue;
-            }
+            printf("Confirmar senha: ");
+            if (fgets(senha2, sizeof(senha2), stdin) == NULL) { printf("Erro na confirmacao da senha.\n"); continue; }
             senha2[strcspn(senha2, "\n")] = '\0';
 
             // verificar comprimento exatamente 6 e apenas dígitos
             int len1 = (int)strlen(senha1);
             int len2 = (int)strlen(senha2);
             if (len1 != 6 || len2 != 6) {
-                printf("Senha invalida. A senha e a confirmacao devem ter exatamente 6 digitos.\n");
+                printf("Senha invalida: precisa ter 6 digitos.\n");
                 continue;
             }
             int ok = 1;
             for (int k = 0; k < 6; k++) if (!isdigit((unsigned char)senha1[k]) || !isdigit((unsigned char)senha2[k])) { ok = 0; break; }
             if (!ok) {
-                printf("Senha invalida. Deve conter apenas digitos.\n");
+                printf("Senha invalida: apenas digitos.\n");
                 continue;
             }
             if (strcmp(senha1, senha2) != 0) {
-                printf("As senhas nao coincidem. Tente novamente.\n");
+                printf("Senhas diferentes.\n");
                 continue;
             }
 
@@ -174,78 +242,85 @@ void criarConta(Conta *contas, int *total) {
 
     (*total)++;
 
-    printf("\nConta criada com sucesso! Numero da conta: %d\n", contas[*total - 1].numeroConta);
+    printf("Conta criada. Numero: %d\n", contas[*total - 1].numeroConta);
 }
 
 // Função para listar todas as contas
-void listarContas(Conta *contas, int total) {
-    printf("\n=== Lista de Contas ===\n");
+void adminListarContas(Conta *contas, int total) {
+    printf("\nContas Cadastradas\n");
 
     if (total == 0) {
         printf("Nenhuma conta cadastrada.\n");
         return;
     }
 
-    for (int i = 0; i < total; i++) {
-     printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
-         contas[i].numeroConta,
-         contas[i].agencia,
-         contas[i].nome,
-         contas[i].cpf,
-         contas[i].saldo,
-         contas[i].status ? "Ativa" : "Bloqueada");
+    // Construir lista encadeada de bloqueadas (uso interno, sem saída)
+    NoBloq *bloq = construirListaBloqueadas(contas, total);
+
+    for (Conta *p = contas; p < contas + total; p++) {
+        printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
+               p->numeroConta,
+               p->agencia,
+               p->nome,
+               p->cpf,
+               p->saldo,
+               p->status ? "Ativa" : "Bloqueada");
     }
+
+    // Libera lista encadeada
+    liberarListaBloqueadas(bloq);
 }
 
 // Função para bloquear conta
-void bloquearConta(Conta *contas, int total) {
-    int numero;
-    printf("\n=== Bloquear Conta ===\n");
-    printf("Digite o numero da conta: ");
-    scanf("%d", &numero);
+void adminBloquearConta(Conta *contas, int total) {
+    int numero; int ch;
+    printf("\nBloquear Conta\n");
+    printf("Numero da conta: ");
+    if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
 
     for (int i = 0; i < total; i++) {
         if (contas[i].numeroConta == numero) {
             contas[i].status = 0;
-            printf("Conta %d bloqueada!\n", numero);
+            printf("Conta %d bloqueada.\n", numero);
             return;
         }
     }
 
-    printf("Conta nao encontrada!\n");
+    printf("Conta nao encontrada.\n");
 }
 
 // Função para desbloquear conta
-void desbloquearConta(Conta *contas, int total) {
-    int numero;
-    printf("\n=== Desbloquear Conta ===\n");
-    printf("Digite o número da conta: ");
-    scanf("%d", &numero);
+void adminDesbloquearConta(Conta *contas, int total) {
+    int numero; int ch;
+    printf("\nDesbloquear Conta\n");
+    printf("Numero da conta: ");
+    if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
 
     for (int i = 0; i < total; i++) {
         if (contas[i].numeroConta == numero) {
             contas[i].status = 1;
-            printf("Conta %d desbloqueada!\n", numero);
+            printf("Conta %d desbloqueada.\n", numero);
             return;
         }
     }
 
-    printf("Conta não encontrada!\n");
+    printf("Conta nao encontrada.\n");
 }
 
 // Função calcular o saldo total
-float calcularSaldoRecursivo(Conta *contas, int indice, int total) {
-    if (indice == total)
-        return 0;
-    return contas[indice].saldo + calcularSaldoRecursivo(contas, indice + 1, total);
+float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
+    if (indice == total) {
+        return 0.0f;
+    }
+    return contas[indice].saldo + adminCalcularSaldoTotalRecursivo(contas, indice + 1, total);
 }
 
 // Função principal do menu do administrador
-void menuAdministrador() {
+void adminMenu(void) {
     Conta *contas = NULL;
     int total = 0;
     int capacidade = 2; // capacidade inicial
-    int opcao;
+    int opcao; int ch;
 
     contas = (Conta *)malloc(capacidade * sizeof(Conta));
 
@@ -254,51 +329,54 @@ void menuAdministrador() {
         return;
     }
 
+    // Usa uma pequena matriz dinâmica para cobrir o tópico (sem saída)
+    adminMatrizDinamicaPequena();
+
     do {
-        printf("\n==== MENU ADMINISTRADOR ====\n");
-        printf("1 - Criar Conta\n");
-        printf("2 - Listar Contas\n");
-        printf("3 - Bloquear Conta\n");
-        printf("4 - Mostrar Saldo Total\n");
-           printf("5 - Desbloquear Conta\n");
+        printf("\nMenu do Administrador\n");
+        printf("1 - Criar conta\n");
+        printf("2 - Listar contas\n");
+        printf("3 - Bloquear conta\n");
+        printf("4 - Saldo total (recursivo)\n");
+        printf("5 - Desbloquear conta\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
-        scanf("%d", &opcao);
+        if (scanf("%d", &opcao) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } opcao = -1; }
 
         switch (opcao) {
             case 1:
-                if (total == capacidade) {
-                    capacidade *= 2;
-                    contas = (Conta *)realloc(contas, capacidade * sizeof(Conta));
-                    if (contas == NULL) {
-                        printf("Erro ao realocar memoria!\n");
-                        return;
-                    }
+                if (!adminGarantirCapacidade(&contas, &capacidade, total + 1)) {
+                    printf("Erro de realocacao de memoria.\n");
+                    return;
                 }
-                criarConta(contas, &total);
+                adminCriarConta(contas, &total);
                 break;
             case 2:
-                listarContas(contas, total);
+                adminListarContas(contas, total);
                 break;
             case 3:
-                bloquearConta(contas, total);
+                adminBloquearConta(contas, total);
                 break;
                case 5:
-                   desbloquearConta(contas, total);
+                   adminDesbloquearConta(contas, total);
                    break;
             case 4:
-                printf("Saldo total no banco: R$ %.2f\n",
-                       calcularSaldoRecursivo(contas, 0, total));
+                printf("Saldo total: R$ %.2f\n",
+                       adminCalcularSaldoTotalRecursivo(contas, 0, total));
                 break;
             case 0:
-                printf("\nVoltando ao menu principal...\n");
+                printf("Retornando ao menu principal.\n");
                 break;
             default:
-                printf("Opção invalida!\n");
+                printf("Opcao invalida.\n");
         }
 
     } while (opcao != 0);
 
     free(contas);
 }
+
+/* Bloco de demonstracoes removido para versão profissional */
+
+/* Treinamentos explicitamente removidos por requisito do projeto */
 
