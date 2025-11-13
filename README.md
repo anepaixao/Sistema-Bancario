@@ -52,12 +52,6 @@ Projeto desenvolvido para disciplina de Linguagem de Programação II.
 	- Menu: opção 2 (todas), 6 (ativas), 7 (bloqueadas)
 
 
-## 🚀 Como compilar (Windows PowerShell)
-```powershell
-gcc -Wall -Wextra -std=c11 "Trabalho final/main.c" "Trabalho final/administrador.c" "Trabalho final/cliente.c" -I "Trabalho final" -o "Trabalho final/output/banco.exe"
-"Trabalho final/output/banco.exe"
-```
-
 ## 🔐 Acesso
 - Administrador: usuário `ane` senha `admin`
 
