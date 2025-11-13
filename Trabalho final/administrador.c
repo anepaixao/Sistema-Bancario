@@ -245,8 +245,18 @@ void adminCriarConta(Conta *contas, int *total) {
     printf("Conta criada. Numero: %d\n", contas[*total - 1].numeroConta);
 }
 
-// Função para listar todas as contas
-void adminListarContas(Conta *contas, int total) {
+// Predicados de exemplo (internos)
+// Exemplos de filtros (mantidos para eventual extensão)
+// (GCC/Clang) Anotar como unused para suprimir warnings
+#if defined(__GNUC__)
+static int filtroAtivas(const Conta *c) __attribute__((unused));
+static int filtroBloqueadas(const Conta *c) __attribute__((unused));
+#endif
+static int filtroAtivas(const Conta *c) { return c->status == 1; }
+static int filtroBloqueadas(const Conta *c) { return c->status == 0; }
+
+// Função para listar contas com filtro (callback). Se filtro == NULL, lista todas.
+void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
     printf("\nContas Cadastradas\n");
 
     if (total == 0) {
@@ -258,13 +268,15 @@ void adminListarContas(Conta *contas, int total) {
     NoBloq *bloq = construirListaBloqueadas(contas, total);
 
     for (Conta *p = contas; p < contas + total; p++) {
-        printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
-               p->numeroConta,
-               p->agencia,
-               p->nome,
-               p->cpf,
-               p->saldo,
-               p->status ? "Ativa" : "Bloqueada");
+        if (!filtro || filtro(p)) {
+            printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
+                   p->numeroConta,
+                   p->agencia,
+                   p->nome,
+                   p->cpf,
+                   p->saldo,
+                   p->status ? "Ativa" : "Bloqueada");
+        }
     }
 
     // Libera lista encadeada
@@ -339,6 +351,8 @@ void adminMenu(void) {
         printf("3 - Bloquear conta\n");
         printf("4 - Saldo total (recursivo)\n");
         printf("5 - Desbloquear conta\n");
+        printf("6 - Listar somente contas ativas\n");
+        printf("7 - Listar somente contas bloqueadas\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
         if (scanf("%d", &opcao) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } opcao = -1; }
@@ -352,7 +366,7 @@ void adminMenu(void) {
                 adminCriarConta(contas, &total);
                 break;
             case 2:
-                adminListarContas(contas, total);
+                adminListarContas(contas, total, NULL); // todas
                 break;
             case 3:
                 adminBloquearConta(contas, total);
@@ -363,6 +377,12 @@ void adminMenu(void) {
             case 4:
                 printf("Saldo total: R$ %.2f\n",
                        adminCalcularSaldoTotalRecursivo(contas, 0, total));
+                break;
+            case 6:
+                adminListarContas(contas, total, filtroAtivas);
+                break;
+            case 7:
+                adminListarContas(contas, total, filtroBloqueadas);
                 break;
             case 0:
                 printf("Retornando ao menu principal.\n");
@@ -375,8 +395,3 @@ void adminMenu(void) {
 
     free(contas);
 }
-
-/* Bloco de demonstracoes removido para versão profissional */
-
-/* Treinamentos explicitamente removidos por requisito do projeto */
-

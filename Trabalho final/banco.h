@@ -27,8 +27,11 @@ void adminMenu(void);
 // Cria uma nova conta bancária
 void adminCriarConta(Conta *contas, int *total);
 
-// Lista todas as contas
-void adminListarContas(Conta *contas, int total);
+// Callback de filtro: retorna 1 se deve exibir a conta, 0 caso contrário
+typedef int (*ContaFiltro)(const Conta *c);
+
+// Lista contas (se filtro NULL, exibe todas)
+void adminListarContas(Conta *contas, int total, ContaFiltro filtro);
 
 // Bloqueia uma conta (status=0)
 void adminBloquearConta(Conta *contas, int total);

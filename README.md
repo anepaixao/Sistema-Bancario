@@ -17,6 +17,9 @@ Projeto desenvolvido para disciplina de Linguagem de Programação II.
 - `adminMenu` – loop do menu administrativo
 - `adminCriarConta` – cria conta com validação de nome não vazio, CPF e senha numérica (6 dígitos)
 - `adminListarContas` – lista contas ativas e bloqueadas
+	- Opções de filtro (menu 6 e 7) demonstram callback com `ContaFiltro`:
+		- 6: somente ativas
+		- 7: somente bloqueadas
 - `adminBloquearConta` / `adminDesbloquearConta` – altera status
 - `adminCalcularSaldoTotalRecursivo` – exemplo de recursão para somar saldos
 
@@ -45,6 +48,8 @@ Projeto desenvolvido para disciplina de Linguagem de Programação II.
 - Alocação dinâmica (matriz): `adminMatrizDinamicaPequena` em `Trabalho final/administrador.c` (alocação em duas etapas e liberação).
 - Recursão: `adminCalcularSaldoTotalRecursivo(Conta*, int, int)` em `Trabalho final/administrador.c`.
 - Listas encadeadas: `NoBloq`, `construirListaBloqueadas`, `liberarListaBloqueadas` usados dentro de `adminListarContas` em `Trabalho final/administrador.c`.
+ - Ponteiros para funções (callback): `typedef ContaFiltro` em `banco.h` e `adminListarContas(Conta*, int, ContaFiltro)` usando filtro (NULL = todas).
+	- Menu: opção 2 (todas), 6 (ativas), 7 (bloqueadas)
 
 
 ## 🚀 Como compilar (Windows PowerShell)
