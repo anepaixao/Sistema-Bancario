@@ -1,119 +1,273 @@
-#include "cliente.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define TAM 100
 
-typedef struct {
+typedef struct Usuario {
     char cpf[15];
     char senha[8];
     char agencia[50];
     double saldo;
     char pix[TAM];
+    struct Usuario *prox;
 } Usuario;
 
-Usuario usuario = {"", "", "", 1500.00, ""};
+typedef struct Transacao {
+    char tipo[20];
+    double valor;
+    char descricao[50];
+    struct Transacao *prox;
+} Transacao;
 
-int login() {
-    puts("Digite seu CPF: ");
-    scanf(" %[^\n]", usuario.cpf);
-    puts("Digite sua senha de 8 digitos: ");
-    scanf(" %[^\n]", usuario.senha);
-    return 0;
-}
+typedef struct ListaChavesPix {
+    char chave[100];
+    struct ListaChavesPix *prox;
+} ListaChavesPix;
 
-int tela_principal() {
-    
-    strcpy(usuario.agencia, "001 - AGENCIA DO CENTRO");
-    char cabecalho[80];
-    strcpy(cabecalho, "AGENCIA:");
-    strcat(cabecalho, usuario.agencia);
-    
-    printf("\n%s\t  SALDO: %.2f\t  CPF: %s\n\n", cabecalho, usuario.saldo, usuario.cpf);
-    puts("\nEXTRATO\t DEPOSITO\t SAQUE\t TRANSFERENCIA\n\n");
-    puts("\noutras opcões\n");
-    
-    
-    return 0;
-}
+// Protótipos das funções
+Usuario* criar_usuario();
+int login(Usuario *usuario);
+int tela_principal(Usuario *usuario);
+double deposito_recursivo(Usuario *usuario, double valor, int interacoes);
+void pix_aleatorio(Usuario *usuario);
+ListaChavesPix* cadastrar_pix_recursivo(ListaChavesPix *lista, Usuario *usuario, int tentativas);
+void exibir_chaves_pix_recursivo(ListaChavesPix *lista, int contador);
+void liberar_chaves_pix(ListaChavesPix *lista);
+void qr_code();
+void boleto();
+Transacao* adicionar_transacao(Transacao *lista, const char *tipo, double valor, const char *descricao);
+void extrato_recursivo(Transacao *transacao, Usuario *usuario, int numero);
+void liberar_transacoes(Transacao *lista);
+double saque_recursivo(Usuario *usuario, double valor, int tentativas);
+int opcoes(Usuario *usuario, Transacao **transacoes, ListaChavesPix **chaves, char *escolha);
 
 
-double deposito(double valor) {
-    
-    usuario.saldo += valor;
-    
-    printf("+ R$ %.2f\n", valor);
-    
-    return usuario.saldo;
-}
-
-void pix_aleatorio(){
-    
-    sprintf(usuario.pix, "%s@banco%s.com", usuario.agencia, usuario.cpf);
-    
-    printf("Nova chave PIX gerada: %s\n", usuario.pix);
-    
-}
-
-int pix_cadastro(){
-
-int b; 
-char numero[12];  
-char email[50];
-
-    printf("Escolha o que voce quer cadastrar: 1 - CPF\t 2 - Numero\t 3 - Email\t");
-    scanf("%d", &b);  
-
-    switch(b){
-
-        case 1:
-        
-            printf("%s agora é sua nova chave\n", usuario.cpf);
-            strcpy(usuario.pix, usuario.cpf);
-            
-        break;
-
-        case 2:
-        
-            printf("Digite seu numero: \n");
-            scanf("%[^\n]", numero);
-            printf("%s é sua nova chave agora\n", numero);
-            strcpy(usuario.pix, numero);
-            
-        break;
-
-        case 3:
-        
-            printf("Digite seu email: \n");
-            scanf("%s\n", email);
-            printf("%s é agora sua nova chave", email);
-            strcpy(usuario.pix, email);
-            
-        break;
-
-    default:
-    
-printf("Opção inválida!\n");
-
-}
-
-    return 0;
-}
-
-int pix_cadastrados(){
-
-    if(strlen(usuario.pix) == 0) {
-        
-        printf("Nenhuma chave PIX cadastrada.\n");
+Usuario* criar_usuario() {
+    Usuario *novo = (Usuario*) malloc(sizeof(Usuario));
+    if (novo == NULL) {
+        printf("Erro ao alocar memória para usuário!\n");
+        exit(1);
     }
     
+    strcpy(novo->cpf, "");
+    strcpy(novo->senha, "");
+    strcpy(novo->agencia, "001 - AGENCIA DO CENTRO");
+    novo->saldo = 1500.00;
+    strcpy(novo->pix, "");
+    novo->prox = NULL;
+    
+    return novo;
+}
+
+
+int login(Usuario *usuario) {
+    static int tentativas = 3;
+    
+    if (tentativas <= 0) {
+        printf("Número máximo de tentativas excedido!\n");
+        return -1;
+    }
+    
+    printf("Digite seu CPF: ");
+    scanf(" %[^\n]", usuario->cpf);
+    printf("Digite sua senha de 8 dígitos: ");
+    scanf(" %[^\n]", usuario->senha);
+    
+    if (strlen(usuario->senha) != 8) {
+        printf("Senha deve ter 8 dígitos! Tentativas restantes: %d\n", --tentativas);
+        return login(usuario);
+    }
+    
+    printf("Login realizado com sucesso!\n");
+    return 0;
+}
+
+int tela_principal(Usuario *usuario) {
+    char *cabecalho = (char*) malloc(200 * sizeof(char));
+    if (cabecalho == NULL) {
+        puts("ERRO ao alocar memória!");
+        return -1;
+    }
+    
+    snprintf(cabecalho, 200, "AGENCIA: %s\t  SALDO: %.2f\t  CPF: %s\n\n", 
+             usuario->agencia, usuario->saldo, usuario->cpf);
+    
+    printf("\n%s", cabecalho);
+    puts("EXTRATO\t DEPOSITO\t SAQUE\t TRANSFERENCIA\n\n");
+    puts("outras opções\n");
+    
+    free(cabecalho);
+    return 0;
+}
+
+
+double deposito_recursivo(Usuario *usuario, double valor, int interacoes) {
+    if (interacoes <= 0) {
+        return usuario->saldo;
+    }
     else {
-        
-        printf("Chave PIX cadastrada: %s\n", usuario.pix);
+        usuario->saldo += valor;
+        printf("+ R$ %.2f\n", valor); 
+        return deposito_recursivo(usuario, valor, interacoes - 1);
     }
-
-    return 0;
 }
 
-void qr_code(){
+
+void pix_aleatorio(Usuario *usuario) {
+    sprintf(usuario->pix, "%s@banco%s.com", usuario->agencia, usuario->cpf);
+    printf("Nova chave PIX gerada: %s\n", usuario->pix);
+}
+
+
+ListaChavesPix* cadastrar_pix_recursivo(ListaChavesPix *lista, Usuario *usuario, int tentativas) {
+    if (tentativas <= 0) {
+        printf("Número máximo de tentativas excedido!\n");
+        return lista;
+    }
+    
+    int opcao;
+    printf("Escolha o que quer cadastrar: 1 - CPF\t 2 - Número\t 3 - Email\t 4 - Voltar: ");
+    scanf("%d", &opcao);
+    
+    if (opcao == 4) {
+        return lista;
+    }
+    
+    ListaChavesPix *nova_chave = (ListaChavesPix*) malloc(sizeof(ListaChavesPix));
+    if (nova_chave == NULL) {
+        printf("Erro ao alocar memória!\n");
+        return lista;
+    }
+    
+    switch(opcao) {
+        case 1:
+            strcpy(nova_chave->chave, usuario->cpf);
+            printf("%s agora é sua nova chave\n", usuario->cpf);
+            break;
+            
+        case 2: {
+            char numero[12];
+            printf("Digite seu número: ");
+            scanf(" %[^\n]", numero);
+            strcpy(nova_chave->chave, numero);
+            printf("%s é sua nova chave agora\n", numero);
+            break;
+        }
+            
+        case 3: {
+            char email[50];
+            printf("Digite seu email: ");
+            scanf(" %[^\n]", email);
+            strcpy(nova_chave->chave, email);
+            printf("%s é agora sua nova chave\n", email);
+            break;
+        }
+            
+        default:
+            printf("Opção inválida! Tentativas restantes: %d\n", tentativas - 1);
+            free(nova_chave);
+            return cadastrar_pix_recursivo(lista, usuario, tentativas - 1);
+    }
+    
+    nova_chave->prox = lista;
+    return nova_chave;
+}
+
+
+void exibir_chaves_pix_recursivo(ListaChavesPix *lista, int contador) {
+    if (lista == NULL) {
+        if (contador == 1) {
+            printf("Nenhuma chave PIX cadastrada.\n");
+        }
+        return;
+    }
+    
+    printf("Chave PIX %d: %s\n", contador, lista->chave);
+    exibir_chaves_pix_recursivo(lista->prox, contador + 1);
+}
+
+
+void liberar_chaves_pix(ListaChavesPix *lista) {
+    if (lista == NULL) return;
+    
+    liberar_chaves_pix(lista->prox);
+    free(lista);
+}
+
+
+Transacao* adicionar_transacao(Transacao *lista, const char *tipo, double valor, const char *descricao) {
+    Transacao *nova = (Transacao*) malloc(sizeof(Transacao));
+    if (nova == NULL) {
+        printf("Erro ao alocar memória para transação!\n");
+        return lista;
+    }
+    
+    strcpy(nova->tipo, tipo);
+    nova->valor = valor;
+    strcpy(nova->descricao, descricao);
+    nova->prox = lista;
+    
+    return nova;
+}
+
+
+void extrato_recursivo(Transacao *transacao, Usuario *usuario, int numero) {
+    if (transacao == NULL) {
+        if (numero == 1) {
+            printf("CPF - %s\n", usuario->cpf);
+            printf("Saldo atual - R$ %.2f\n", usuario->saldo);
+            printf("Nenhuma transação encontrada.\n");
+        }
+        return;
+    }
+    
+    if (numero == 1) {
+        printf("CPF - %s\n", usuario->cpf);
+        printf("Saldo atual - R$ %.2f\n", usuario->saldo);
+        printf("\n--- EXTRATO BANCÁRIO ---\n");
+    }
+    
+    printf("%d. %s: R$ %.2f - %s\n", numero, transacao->tipo, transacao->valor, transacao->descricao);
+    extrato_recursivo(transacao->prox, usuario, numero + 1);
+}
+
+
+void liberar_transacoes(Transacao *lista) {
+    if (lista == NULL) return;
+    
+    liberar_transacoes(lista->prox);
+    free(lista);
+}
+
+
+double saque_recursivo(Usuario *usuario, double valor, int tentativas) {
+    if (tentativas <= 0) {
+        printf("Acabaram as tentativas!\n");
+        return usuario->saldo;
+    }
+    
+    if (valor <= 0) {
+        printf("Valor deve ser positivo! Tentativas restantes: %d\n", tentativas - 1);
+        printf("Digite outro valor: ");
+        scanf("%lf", &valor);
+        return saque_recursivo(usuario, valor, tentativas - 1);
+    }
+    
+    if (valor > usuario->saldo) {
+        printf("Saldo insuficiente! Saldo atual: R$ %.2f\n", usuario->saldo);
+        printf("Digite outro valor (%d tentativas restantes): ", tentativas - 1);
+        scanf("%lf", &valor);
+        return saque_recursivo(usuario, valor, tentativas - 1);
+    }
+    
+    usuario->saldo -= valor;
+    printf("Sacado: R$ %.2f | Saldo: R$ %.2f\n", valor, usuario->saldo);
+    return usuario->saldo;
+}
+
+
+void qr_code() {
     printf("\n");
     printf("/////////////////////// QR CODE /////////////////////\n");
     printf("\n");
@@ -139,12 +293,10 @@ void qr_code(){
     printf("    |||||   ||||||||||||   ||||||||||           ||||||   \n");
     printf("\n");
     printf("Escaneie com a camera do celular ou o app do banco\n\n");
-
 }
 
 
-
-void boleto(){
+void boleto() {
     printf("\n");
     printf("____________________________________________________________________________________________\n");
     printf("|    AGENCIA  DO CENTRO  |               |  00000002305402030900055J607500 - 01             |\n");
@@ -178,85 +330,95 @@ void boleto(){
     printf("____________________________________________________________________________________________\n");
 }
 
-int extrato(){
-    
-    printf("CPF - %s\n", usuario.cpf);
-    printf("Saldo atual - R$ %f\n", usuario.saldo);
-    printf("Nenhuma compra foi efetuada ate agora");
-
-return 0;
-}
-
-double saque(double valor) {
-    int tentativas = 3;
-    while (tentativas > 0) {
-        
-        if (valor <= usuario.saldo && valor > 0) {
-            usuario.saldo -= valor;
-            return usuario.saldo;
-        }
-        tentativas--;
-    }
-    return usuario.saldo;
-}
-int opcoes(char *escolha) {
+int opcoes(Usuario *usuario, Transacao **transacoes, ListaChavesPix **chaves, char *escolha) {
     double valor; 
     char transferencia[20] = "";
-    char pix[30] = "";
+    char pix[50] = "";
     
     if(strcmp(escolha, "EXTRATO") == 0) {
-        extrato();
+        extrato_recursivo(*transacoes, usuario, 1);
     }
     else if(strcmp(escolha, "DEPOSITO") == 0) {
-        printf("Digite a forma de deposito: PIX\t  BOLETO\t  TED\t");
+        printf("Digite a forma de depósito: PIX\t  BOLETO\t  TED\t");
         scanf("%s", transferencia);
         
-        if(strcmp(transferencia, "PIX") == 0){
-        printf("Escolha uma opção: gerar chave aleatoria\t fazer o cadastro de uma nova chave\t ver chaves disponiveis\t gerar qr code de chave aleatoria\n");
-        
-        scanf(" %[^\n]s", pix);
-        
-        if(strcmp(pix, "gerar chave aleatoria") == 0){
-        pix_aleatorio();
+        if(strcmp(transferencia, "PIX") == 0) {
+            printf("Escolha uma opção: gerar chave aleatoria\t fazer cadastro\t ver chaves\t gerar qr code\n");
+            scanf(" %[^\n]", pix);
+            
+            if(strcmp(pix, "gerar chave aleatoria") == 0) {
+                pix_aleatorio(usuario);
+            }
+            else if(strcmp(pix, "fazer cadastro") == 0) {
+                *chaves = cadastrar_pix_recursivo(*chaves, usuario, 3);
+            }
+            else if(strcmp(pix, "ver chaves") == 0) {
+                exibir_chaves_pix_recursivo(*chaves, 1);
+            }
+            else if(strcmp(pix, "gerar qr code") == 0) {
+                qr_code();
+            }
         }
-        
-        else if(strcmp(pix, "fazer o cadastro de uma nova chave") == 0){
-        pix_cadastro();
+        else if(strcmp(transferencia, "BOLETO") == 0) {
+            boleto();
         }
-        
-        else if(strcmp(pix, "ver chaves disponiveis") == 0){
-        pix_cadastrados();
-        }
-        
-        else if(strcmp(pix, "gerar qr code de chave aleatoria") == 0){
-        qr_code();
-        }
-        }
-        
-        else if(strcmp(transferencia, "BOLETO") == 0){
-        boleto();
-        }
-        
-        else if(strcmp(transferencia, "TED") == 0){
-        printf("Digite o valor a ser depositado: ");
-        scanf("%lf", &valor);
-        
-        double novo_saldo = deposito(valor);
-        printf("Operação concluída! Saldo final: R$ %.2f\n", novo_saldo);
+        else if(strcmp(transferencia, "TED") == 0) {
+            printf("Digite o valor a ser depositado: ");
+            scanf("%lf", &valor);
+            
+            double novo_saldo = deposito_recursivo(usuario, valor, 1);
+            *transacoes = adicionar_transacao(*transacoes, "DEPOSITO", valor, "Transferência TED");
+            printf("Operação concluída! Saldo final: R$ %.2f\n", novo_saldo);
         }
     }
     else if(strcmp(escolha, "SAQUE") == 0) {
         printf("Digite o valor a ser sacado: ");
         scanf("%lf", &valor);
+        double novo_saldo = saque_recursivo(usuario, valor, 3);
+        *transacoes = adicionar_transacao(*transacoes, "SAQUE", -valor, "Saque em caixa eletrônico");
+        printf("Saque realizado! Saldo final: R$ %.2f\n", novo_saldo);
     }
     else if(strcmp(escolha, "TRANSFERENCIA") == 0) {
         printf("Transferencia selecionada\n");
     }
-    else if(strcmp(escolha, "OUTRAS OPÇÕES") == 0) {
+    else if(strcmp(escolha, "OUTRAS") == 0) {
         printf("Outras opcoes selecionadas\n");
     }
     else {
         printf("OPÇÃO INVÁLIDA!\n");
     }
+    return 0;
+}
+
+
+int main(void) {
+    char escolha[20];  
+    
+    
+    Usuario *usuario = criar_usuario();
+    
+   
+    Transacao *transacoes = NULL;
+    ListaChavesPix *chaves_pix = NULL;
+    
+    if (login(usuario) != 0) {
+        printf("Falha no login. Encerrando...\n");
+        free(usuario);
+        return 1;
+    }
+    
+    tela_principal(usuario);
+    
+    printf("DIGITE A OPÇÃO QUE DESEJA: "); 
+    scanf(" %[^\n]", escolha);
+    
+    opcoes(usuario, &transacoes, &chaves_pix, escolha);
+    
+
+    liberar_transacoes(transacoes);
+    liberar_chaves_pix(chaves_pix);
+    free(usuario);
+    
+    printf("Obrigada por usar o banco!\n");
     return 0;
 }
