@@ -22,19 +22,12 @@ int main(void) {
             case 1:
                 if (adminAutenticar()) adminMenu();
                 break;
-            case 2: {
-                char escolha[64] = "";
-                // limpar newline pendente
-                int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
-                login();
-                tela_principal();
-                printf("DIGITE A OPCAO QUE DESEJA: ");
-                if (fgets(escolha, sizeof(escolha), stdin) != NULL) {
-                    escolha[strcspn(escolha, "\n")] = '\0';
-                    opcoes(escolha);
-                }
+            case 2:
+                // delega fluxo do cliente para o modulo cliente
+                // limpa newline pendente do scanf do menu
+                { int ch; while ((ch = getchar()) != '\n' && ch != EOF) {} }
+                clienteExecutar();
                 break;
-            }
             case 0:
                 printf("Encerrando o sistema...\n");
                 break;

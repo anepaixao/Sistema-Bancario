@@ -1,49 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cliente.h"
 
-#define TAM 100
+/* Validação de CPF: remove caracteres não numéricos, checa tamanho 11,
+   descarta sequências repetidas e verifica dígitos conforme algoritmo oficial */
+static int validarCPF(const char *entrada) {
+    char dig[12];
+    int j = 0;
+    for (int i = 0; entrada[i] != '\0' && j < 11; i++) {
+        if (entrada[i] >= '0' && entrada[i] <= '9') {
+            dig[j++] = entrada[i];
+        }
+    }
+    dig[j] = '\0';
+    if (j != 11) return 0;
+    // Verifica se todos os dígitos são iguais
+    int iguais = 1;
+    for (int i = 1; i < 11; i++) {
+        if (dig[i] != dig[0]) { iguais = 0; break; }
+    }
+    if (iguais) return 0;
+    // Calcula primeiro dígito verificador
+    int soma = 0;
+    for (int i = 0; i < 9; i++) soma += (dig[i]-'0') * (10 - i);
+    int dv1 = (soma * 10) % 11; if (dv1 == 10) dv1 = 0;
+    if (dv1 != (dig[9]-'0')) return 0;
+    // Segundo dígito
+    soma = 0;
+    for (int i = 0; i < 10; i++) soma += (dig[i]-'0') * (11 - i);
+    int dv2 = (soma * 10) % 11; if (dv2 == 10) dv2 = 0;
+    if (dv2 != (dig[10]-'0')) return 0;
+    return 1;
+}
 
-typedef struct Usuario {
-    char cpf[15];
-    char senha[8];
-    char agencia[50];
-    double saldo;
-    char pix[TAM];
-    struct Usuario *prox;
-} Usuario;
-
-typedef struct Transacao {
-    char tipo[20];
-    double valor;
-    char descricao[50];
-    struct Transacao *prox;
-} Transacao;
-
-typedef struct ListaChavesPix {
-    char chave[100];
-    struct ListaChavesPix *prox;
-} ListaChavesPix;
-
-// Protótipos das funções
-Usuario* criar_usuario();
-int login(Usuario *usuario);
-int tela_principal(Usuario *usuario);
-double deposito_recursivo(Usuario *usuario, double valor, int interacoes);
-void pix_aleatorio(Usuario *usuario);
-ListaChavesPix* cadastrar_pix_recursivo(ListaChavesPix *lista, Usuario *usuario, int tentativas);
-void exibir_chaves_pix_recursivo(ListaChavesPix *lista, int contador);
-void liberar_chaves_pix(ListaChavesPix *lista);
-void qr_code();
-void boleto();
-Transacao* adicionar_transacao(Transacao *lista, const char *tipo, double valor, const char *descricao);
-void extrato_recursivo(Transacao *transacao, Usuario *usuario, int numero);
-void liberar_transacoes(Transacao *lista);
-double saque_recursivo(Usuario *usuario, double valor, int tentativas);
-int opcoes(Usuario *usuario, Transacao **transacoes, ListaChavesPix **chaves, char *escolha);
+static int senhaValida6Digitos(const char *senha) {
+    if (strlen(senha) != 6) return 0;
+    for (int i = 0; senha[i] != '\0'; i++) {
+        if (senha[i] < '0' || senha[i] > '9') return 0;
+    }
+    return 1;
+}
 
 
-Usuario* criar_usuario() {
+Usuario* criar_usuario(void) {
     Usuario *novo = (Usuario*) malloc(sizeof(Usuario));
     if (novo == NULL) {
         printf("Erro ao alocar memória para usuário!\n");
@@ -69,16 +69,20 @@ int login(Usuario *usuario) {
         return -1;
     }
     
-    printf("Digite seu CPF: ");
+    printf("Digite seu CPF (somente números ou formatado): ");
     scanf(" %[^\n]", usuario->cpf);
-    printf("Digite sua senha de 8 dígitos: ");
-    scanf(" %[^\n]", usuario->senha);
-    
-    if (strlen(usuario->senha) != 8) {
-        printf("Senha deve ter 8 dígitos! Tentativas restantes: %d\n", --tentativas);
+    if (!validarCPF(usuario->cpf)) {
+        printf("CPF inválido! Tentativas restantes: %d\n", --tentativas);
         return login(usuario);
     }
-    
+
+    printf("Digite sua senha de 6 dígitos (somente números): ");
+    scanf(" %[^\n]", usuario->senha);
+    if (!senhaValida6Digitos(usuario->senha)) {
+        printf("Senha inválida (precisa ter exatamente 6 dígitos numéricos)! Tentativas restantes: %d\n", --tentativas);
+        return login(usuario);
+    }
+
     printf("Login realizado com sucesso!\n");
     return 0;
 }
@@ -267,7 +271,7 @@ double saque_recursivo(Usuario *usuario, double valor, int tentativas) {
 }
 
 
-void qr_code() {
+void qr_code(void) {
     printf("\n");
     printf("/////////////////////// QR CODE /////////////////////\n");
     printf("\n");
@@ -296,7 +300,7 @@ void qr_code() {
 }
 
 
-void boleto() {
+void boleto(void) {
     printf("\n");
     printf("____________________________________________________________________________________________\n");
     printf("|    AGENCIA  DO CENTRO  |               |  00000002305402030900055J607500 - 01             |\n");
@@ -391,7 +395,7 @@ int opcoes(Usuario *usuario, Transacao **transacoes, ListaChavesPix **chaves, ch
 }
 
 
-int main(void) {
+int clienteExecutar(void) {
     char escolha[20];  
     
     

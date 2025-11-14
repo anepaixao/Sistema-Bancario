@@ -257,6 +257,7 @@ static int filtroBloqueadas(const Conta *c) { return c->status == 0; }
 
 // Função para listar contas com filtro (callback). Se filtro == NULL, lista todas.
 void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
+    (void)contas; (void)total; // suprimir avisos caso compilado com variantes que não usam
     printf("\nContas Cadastradas\n");
 
     if (total == 0) {
@@ -285,6 +286,7 @@ void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
 
 // Função para bloquear conta
 void adminBloquearConta(Conta *contas, int total) {
+    (void)contas; (void)total; // suprimir avisos caso não utilizados
     int numero; int ch;
     printf("\nBloquear Conta\n");
     printf("Numero da conta: ");
@@ -303,6 +305,7 @@ void adminBloquearConta(Conta *contas, int total) {
 
 // Função para desbloquear conta
 void adminDesbloquearConta(Conta *contas, int total) {
+    (void)contas; (void)total; // suprimir avisos caso não utilizados
     int numero; int ch;
     printf("\nDesbloquear Conta\n");
     printf("Numero da conta: ");
@@ -321,6 +324,7 @@ void adminDesbloquearConta(Conta *contas, int total) {
 
 // Função calcular o saldo total
 float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
+    (void)contas; (void)total; // suprimir avisos em compilações de análise
     if (indice == total) {
         return 0.0f;
     }
