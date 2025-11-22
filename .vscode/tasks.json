@@ -12,6 +12,7 @@
                 "${workspaceFolder}/Trabalho final/main.c",
                 "${workspaceFolder}/Trabalho final/administrador.c",
                 "${workspaceFolder}/Trabalho final/cliente.c",
+                "${workspaceFolder}/Trabalho final/unir.c",
                 "-I",
                 "${workspaceFolder}/Trabalho final",
                 "-o",

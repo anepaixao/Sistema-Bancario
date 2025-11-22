@@ -5,54 +5,12 @@
 #include <stdint.h>
 #include <errno.h>
 #include "banco.h"
+#include "unir.h"
 
 // O main passa os ponteiros para as funções
 // Persistência/log já estão declaradas em banco.h
 
-// Remove caracteres não numéricos (mantém apenas os dígitos) — saída em dst (terminada em '\0')
-static void apenasDigitos(const char *src, char *dst) {
-    int j = 0;
-    for (int i = 0; src[i] != '\0'; i++) {
-        if (isdigit((unsigned char)src[i])) {
-            dst[j++] = src[i];
-            if (j >= 11) break; // CPF tem 11 dígitos
-        }
-    }
-    dst[j] = '\0';
-}
-
-// Valida CPF (aceita com ou sem pontuação)
-static int validarCPF(const char *cpf) {
-    char digitos[12];
-    apenasDigitos(cpf, digitos);
-    if (strlen(digitos) != 11) return 0;
-
-    // verificar se todos os dígitos são iguais
-    int all_equal = 1;
-    for (int i = 1; i < 11; i++) {
-        if (digitos[i] != digitos[0]) { all_equal = 0; break; }
-    }
-    if (all_equal) return 0;
-
-    int nums[11];
-    for (int i = 0; i < 11; i++) nums[i] = digitos[i] - '0';
-
-    // primeiro dígito verificador
-    int sum = 0;
-    for (int i = 0; i < 9; i++) sum += nums[i] * (10 - i);
-    int rem = sum % 11;
-    int d1 = (rem < 2) ? 0 : 11 - rem;
-    if (d1 != nums[9]) return 0;
-
-    // segundo dígito verificador
-    sum = 0;
-    for (int i = 0; i < 10; i++) sum += nums[i] * (11 - i);
-    rem = sum % 11;
-    int d2 = (rem < 2) ? 0 : 11 - rem;
-    if (d2 != nums[10]) return 0;
-
-    return 1;
-}
+// CPF validation and digit extraction moved to `unir.c` (see unir.h)
 
 // Garante capacidade do vetor de contas usando ponteiro para ponteiro e ref de inteiro
 static int adminGarantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
@@ -120,6 +78,7 @@ static void adminMatrizDinamicaPequena(void) {
 // flag macros are declared in banco.h
 
 // Aplica uma operação a cada conta (exemplo de ponteiro para função que recebe Conta*)
+static void adminAplicarACadaConta(Conta *contas, int total, void (*op)(Conta *)) __attribute__((unused));
 static void adminAplicarACadaConta(Conta *contas, int total, void (*op)(Conta *)) {
     if (!op) return;
     for (int i = 0; i < total; i++) op(&contas[i]);
@@ -218,22 +177,14 @@ void adminCriarConta(Conta *contas, int *total) {
 
             printf("Senha (6 digitos numericos): ");
             if (fgets(senha1, sizeof(senha1), stdin) == NULL) { printf("Erro de leitura da senha.\n"); continue; }
-            senha1[strcspn(senha1, "\n")] = '\0';
+            trimNewline(senha1);
             printf("Confirmar senha: ");
             if (fgets(senha2, sizeof(senha2), stdin) == NULL) { printf("Erro na confirmacao da senha.\n"); continue; }
-            senha2[strcspn(senha2, "\n")] = '\0';
+            trimNewline(senha2);
 
-            // verificar comprimento exatamente 6 e apenas dígitos
-            int len1 = (int)strlen(senha1);
-            int len2 = (int)strlen(senha2);
-            if (len1 != 6 || len2 != 6) {
-                printf("Senha invalida: precisa ter 6 digitos.\n");
-                continue;
-            }
-            int ok = 1;
-            for (int k = 0; k < 6; k++) if (!isdigit((unsigned char)senha1[k]) || !isdigit((unsigned char)senha2[k])) { ok = 0; break; }
-            if (!ok) {
-                printf("Senha invalida: apenas digitos.\n");
+            // usar utilitario comum para validar n digitos
+            if (!senhaValidaNDigitos(senha1, 6) || !senhaValidaNDigitos(senha2, 6)) {
+                printf("Senha invalida: precisa ter exatamente 6 digitos numericos.\n");
                 continue;
             }
             if (strcmp(senha1, senha2) != 0) {

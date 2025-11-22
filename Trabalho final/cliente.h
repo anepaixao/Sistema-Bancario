@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "banco.h"
 
 // Prototipos das funcoes implementadas em cliente.c
 int login(void);

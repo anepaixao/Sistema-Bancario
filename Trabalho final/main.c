@@ -3,6 +3,7 @@
 #include <string.h>
 #include "banco.h"
 #include "cliente.h"
+#include "unir.h"
 #include <time.h>
 
 // Persistência: protótipos
@@ -120,4 +121,3 @@ void registrarLog(int idConta, const char *descricao) {
     fprintf(f, "[%s] Conta %d: %s\n", buf, idConta, descricao);
     fclose(f);
 }
-

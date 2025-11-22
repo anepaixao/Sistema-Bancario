@@ -1,6 +1,7 @@
 
 #include "cliente.h"
 #include "banco.h"
+#include "unir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,12 +18,36 @@ typedef struct {
 
 Usuario usuario = {"", "", "", 1500.00, ""};
 
-int login() {
-    puts("Digite seu CPF: ");
-    scanf(" %[^\n]", usuario.cpf);
-    puts("Digite sua senha de 8 digitos: ");
-    scanf(" %[^\n]", usuario.senha);
-    return 0;
+int login(void) {
+    char buf[64];
+
+    // Ler e validar CPF
+    while (1) {
+        printf("Digite seu CPF: ");
+        if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
+        trimNewline(buf);
+        if (validarCPF(buf)) {
+            strncpy(usuario.cpf, buf, sizeof(usuario.cpf)-1);
+            usuario.cpf[sizeof(usuario.cpf)-1] = '\0';
+            break;
+        }
+        printf("CPF invalido. Tente novamente.\n");
+    }
+
+    // Ler e validar senha (6 digitos numericos)
+    while (1) {
+        printf("Digite sua senha (6 digitos numericos): ");
+        if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
+        trimNewline(buf);
+        if (senhaValidaNDigitos(buf, 6)) {
+            strncpy(usuario.senha, buf, sizeof(usuario.senha)-1);
+            usuario.senha[sizeof(usuario.senha)-1] = '\0';
+            break;
+        }
+        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
+    }
+
+    return 1;
 }
 
 int tela_principal() {
@@ -295,12 +320,42 @@ void clienteCriarConta(Conta **contas, int *total, int *capacidade) {
     printf("Nome completo: ");
     if (fgets(c->nome, sizeof(c->nome), stdin) == NULL) return;
     c->nome[strcspn(c->nome, "\n")] = '\0';
-    printf("CPF: ");
-    if (fgets(c->cpf, sizeof(c->cpf), stdin) == NULL) return;
-    c->cpf[strcspn(c->cpf, "\n")] = '\0';
-    printf("Senha (max 19 chars): ");
-    if (fgets(c->senha, sizeof(c->senha), stdin) == NULL) return;
-    c->senha[strcspn(c->senha, "\n")] = '\0';
+    // Ler e validar CPF
+    char buffer[64];
+    while (1) {
+        printf("CPF (somente numeros ou com pontuacao): ");
+        if (fgets(buffer, sizeof(buffer), stdin) == NULL) return;
+        trimNewline(buffer);
+        if (validarCPF(buffer)) {
+            strncpy(c->cpf, buffer, sizeof(c->cpf)-1);
+            c->cpf[sizeof(c->cpf)-1] = '\0';
+            break;
+        }
+        printf("CPF invalido. Tente novamente.\n");
+    }
+
+    // Ler e validar senha: exatamente 6 digitos numericos com confirmacao
+    while (1) {
+        char senha1[16];
+        char senha2[16];
+        printf("Senha (6 digitos numericos): ");
+        if (fgets(senha1, sizeof(senha1), stdin) == NULL) { printf("Erro de leitura da senha.\n"); continue; }
+        trimNewline(senha1);
+        printf("Confirmar senha: ");
+        if (fgets(senha2, sizeof(senha2), stdin) == NULL) { printf("Erro na confirmacao da senha.\n"); continue; }
+        trimNewline(senha2);
+        if (!senhaValidaNDigitos(senha1, 6) || !senhaValidaNDigitos(senha2, 6)) {
+            printf("Senha invalida: deve conter exatamente 6 digitos numericos.\n");
+            continue;
+        }
+        if (strcmp(senha1, senha2) != 0) {
+            printf("Senhas diferentes.\n");
+            continue;
+        }
+        strncpy(c->senha, senha1, sizeof(c->senha)-1);
+        c->senha[sizeof(c->senha)-1] = '\0';
+        break;
+    }
     c->saldo = 0.0f;
     c->flags = 0;
     (*total)++;
@@ -312,8 +367,18 @@ void clienteMenu(Conta **contas, int *total, int *capacidade) {
     int opc = 0;
     printf("\nMenu Cliente\n");
     printf("1 - Criar conta\n");
+    printf("2 - Login\n");
     printf("0 - Voltar\n");
     printf("Escolha: ");
     if (scanf("%d", &opc) != 1) { int ch; while ((ch = getchar()) != '\n' && ch != EOF) {} return; }
-    if (opc == 1) clienteCriarConta(contas, total, capacidade);
+    int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+    if (opc == 1) {
+        clienteCriarConta(contas, total, capacidade);
+    } else if (opc == 2) {
+        if (login()) {
+            tela_principal();
+        } else {
+            printf("Falha no login do cliente.\n");
+        }
+    }
 }
