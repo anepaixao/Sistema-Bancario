@@ -18,4 +18,8 @@ int extrato(void);
 double saque(double valor);
 int opcoes(char *escolha);
 
+// Novas funções que recebem o vetor de contas (encapsulamento sem globais)
+void clienteMenu(Conta **contas, int *total, int *capacidade);
+void clienteCriarConta(Conta **contas, int *total, int *capacidade);
+
 #endif

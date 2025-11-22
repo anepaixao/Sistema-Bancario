@@ -1,4 +1,9 @@
+
 #include "cliente.h"
+#include "banco.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define TAM 100
 
@@ -259,4 +264,56 @@ int opcoes(char *escolha) {
         printf("OPÇÃO INVÁLIDA!\n");
     }
     return 0;
+}
+
+// Funções que operam sobre o vetor de contas passado pelo main
+void clienteCriarConta(Conta **contas, int *total, int *capacidade) {
+    if (!contas || !total || !capacidade) return;
+    // garantir capacidade mínima
+    if (*capacidade < 1) *capacidade = 2;
+    if (*contas == NULL) {
+        *contas = (Conta *)malloc((size_t)(*capacidade) * sizeof(Conta));
+        if (!*contas) { *capacidade = 0; return; }
+    }
+    if (*total + 1 > *capacidade) {
+        int nova = *capacidade * 2;
+        Conta *tmp = (Conta *)realloc(*contas, (size_t)nova * sizeof(Conta));
+        if (!tmp) return;
+        *contas = tmp;
+        *capacidade = nova;
+    }
+
+    // preencher nova conta
+    Conta *c = &(*contas)[*total];
+    // gerar id sequencial (busca maior id)
+    int maxid = 1000;
+    for (int i = 0; i < *total; i++) if ((*contas)[i].id > maxid) maxid = (*contas)[i].id;
+    c->id = maxid + 1;
+
+    // Ler dados do usuário
+    int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
+    printf("Nome completo: ");
+    if (fgets(c->nome, sizeof(c->nome), stdin) == NULL) return;
+    c->nome[strcspn(c->nome, "\n")] = '\0';
+    printf("CPF: ");
+    if (fgets(c->cpf, sizeof(c->cpf), stdin) == NULL) return;
+    c->cpf[strcspn(c->cpf, "\n")] = '\0';
+    printf("Senha (max 19 chars): ");
+    if (fgets(c->senha, sizeof(c->senha), stdin) == NULL) return;
+    c->senha[strcspn(c->senha, "\n")] = '\0';
+    c->saldo = 0.0f;
+    c->flags = 0;
+    (*total)++;
+    printf("Conta criada com id %d\n", c->id);
+}
+
+void clienteMenu(Conta **contas, int *total, int *capacidade) {
+    // para já manter compatibilidade com funções antigas, apenas um menu simples
+    int opc = 0;
+    printf("\nMenu Cliente\n");
+    printf("1 - Criar conta\n");
+    printf("0 - Voltar\n");
+    printf("Escolha: ");
+    if (scanf("%d", &opc) != 1) { int ch; while ((ch = getchar()) != '\n' && ch != EOF) {} return; }
+    if (opc == 1) clienteCriarConta(contas, total, capacidade);
 }

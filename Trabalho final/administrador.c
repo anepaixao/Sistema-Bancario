@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
+#include <errno.h>
 #include "banco.h"
+
+// O main passa os ponteiros para as funções
+// Persistência/log já estão declaradas em banco.h
 
 // Remove caracteres não numéricos (mantém apenas os dígitos) — saída em dst (terminada em '\0')
 static void apenasDigitos(const char *src, char *dst) {
@@ -73,7 +78,7 @@ typedef struct NoBloq {
 static NoBloq *construirListaBloqueadas(const Conta *contas, int total) {
     NoBloq *head = NULL;
     for (int i = 0; i < total; i++) {
-        if (contas[i].status == 0) {
+        if (contas[i].flags & FLAG_BLOQUEADA) {
             NoBloq *n = (NoBloq *)malloc(sizeof(NoBloq));
             if (!n) break;
             n->idx = i;
@@ -112,6 +117,14 @@ static void adminMatrizDinamicaPequena(void) {
     free(m);
 }
 
+// flag macros are declared in banco.h
+
+// Aplica uma operação a cada conta (exemplo de ponteiro para função que recebe Conta*)
+static void adminAplicarACadaConta(Conta *contas, int total, void (*op)(Conta *)) {
+    if (!op) return;
+    for (int i = 0; i < total; i++) op(&contas[i]);
+}
+
 // Autentica o administrador: usuário e senha fixos por enquanto
 int adminAutenticar(void) {
     char user[64];
@@ -148,14 +161,14 @@ void adminCriarConta(Conta *contas, int *total) {
     do {
         duplicado = 0;
         for (int i = 0; i < *total; i++) {
-            if (contas[i].numeroConta == candidato) {
+            if (contas[i].id == candidato) {
                 duplicado = 1;
                 candidato++;
                 break;
             }
         }
     } while (duplicado);
-    contas[*total].numeroConta = candidato;
+    contas[*total].id = candidato;
     proximaConta = candidato + 1;
 
     // Consumir newline pendente do scanf do menu anterior
@@ -234,26 +247,21 @@ void adminCriarConta(Conta *contas, int *total) {
             break;
         }
 
-    contas[*total].saldo = 0.0;
-    // Definir agência padrão como código de 4 dígitos
-    strncpy(contas[*total].agencia, "0001", sizeof(contas[*total].agencia)-1);
-    contas[*total].agencia[sizeof(contas[*total].agencia)-1] = '\0';
-    contas[*total].status = 1;
+    contas[*total].saldo = 0.0f;
+    contas[*total].flags = 0; // inicializa flags (nenhuma flag ativa)
 
     (*total)++;
 
-    printf("Conta criada. Numero: %d\n", contas[*total - 1].numeroConta);
+    printf("Conta criada. Id: %d\n", contas[*total - 1].id);
 }
 
 // Predicados de exemplo (internos)
+// Callback typedef para filtros
+typedef int (*ContaFiltro)(const Conta *c);
+
 // Exemplos de filtros (mantidos para eventual extensão)
-// (GCC/Clang) Anotar como unused para suprimir warnings
-#if defined(__GNUC__)
-static int filtroAtivas(const Conta *c) __attribute__((unused));
-static int filtroBloqueadas(const Conta *c) __attribute__((unused));
-#endif
-static int filtroAtivas(const Conta *c) { return c->status == 1; }
-static int filtroBloqueadas(const Conta *c) { return c->status == 0; }
+static int filtroAtivas(const Conta *c) { return !(c->flags & FLAG_BLOQUEADA); }
+static int filtroBloqueadas(const Conta *c) { return (c->flags & FLAG_BLOQUEADA) != 0; }
 
 // Função para listar contas com filtro (callback). Se filtro == NULL, lista todas.
 void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
@@ -269,13 +277,12 @@ void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
 
     for (Conta *p = contas; p < contas + total; p++) {
         if (!filtro || filtro(p)) {
-            printf("Conta: %d | Agencia: %s | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
-                   p->numeroConta,
-                   p->agencia,
+            printf("Conta: %d | Nome: %s | CPF: %s | Saldo: %.2f | Status: %s\n",
+                   p->id,
                    p->nome,
                    p->cpf,
                    p->saldo,
-                   p->status ? "Ativa" : "Bloqueada");
+                   (p->flags & FLAG_BLOQUEADA) ? "Bloqueada" : "Ativa");
         }
     }
 
@@ -291,8 +298,8 @@ void adminBloquearConta(Conta *contas, int total) {
     if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
 
     for (int i = 0; i < total; i++) {
-        if (contas[i].numeroConta == numero) {
-            contas[i].status = 0;
+        if (contas[i].id == numero) {
+            contas[i].flags |= FLAG_BLOQUEADA;
             printf("Conta %d bloqueada.\n", numero);
             return;
         }
@@ -309,8 +316,8 @@ void adminDesbloquearConta(Conta *contas, int total) {
     if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
 
     for (int i = 0; i < total; i++) {
-        if (contas[i].numeroConta == numero) {
-            contas[i].status = 1;
+        if (contas[i].id == numero) {
+            contas[i].flags &= (unsigned char)~FLAG_BLOQUEADA;
             printf("Conta %d desbloqueada.\n", numero);
             return;
         }
@@ -328,17 +335,16 @@ float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
 }
 
 // Função principal do menu do administrador
-void adminMenu(void) {
-    Conta *contas = NULL;
-    int total = 0;
-    int capacidade = 2; // capacidade inicial
+void adminMenu(Conta **contas, int *total, int *capacidade) {
     int opcao; int ch;
 
-    contas = (Conta *)malloc(capacidade * sizeof(Conta));
-
-    if (contas == NULL) {
-        printf("Erro ao alocar memoria!\n");
-        return;
+    if (!contas || !total || !capacidade) return;
+    if (*contas == NULL && *capacidade > 0) {
+        *contas = (Conta *)malloc((size_t)(*capacidade) * sizeof(Conta));
+        if (!*contas) {
+            printf("Erro ao alocar memoria!\n");
+            return;
+        }
     }
 
     // Usa uma pequena matriz dinâmica para cobrir o tópico (sem saída)
@@ -353,37 +359,84 @@ void adminMenu(void) {
         printf("5 - Desbloquear conta\n");
         printf("6 - Listar somente contas ativas\n");
         printf("7 - Listar somente contas bloqueadas\n");
+        printf("8 - Salvar contas em arquivo\n");
+        printf("9 - Carregar contas de arquivo\n");
+        printf("10 - Alternar flag PREMIUM (bitwise)\n");
+        printf("11 - Mostrar flags de uma conta\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
         if (scanf("%d", &opcao) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } opcao = -1; }
 
         switch (opcao) {
             case 1:
-                if (!adminGarantirCapacidade(&contas, &capacidade, total + 1)) {
+                if (!adminGarantirCapacidade(contas, capacidade, (*total) + 1)) {
                     printf("Erro de realocacao de memoria.\n");
                     return;
                 }
-                adminCriarConta(contas, &total);
+                adminCriarConta(*contas, total);
                 break;
             case 2:
-                adminListarContas(contas, total, NULL); // todas
+                adminListarContas(*contas, *total, NULL); // todas
                 break;
             case 3:
-                adminBloquearConta(contas, total);
+                adminBloquearConta(*contas, *total);
                 break;
                case 5:
-                   adminDesbloquearConta(contas, total);
+                   adminDesbloquearConta(*contas, *total);
                    break;
             case 4:
                 printf("Saldo total: R$ %.2f\n",
-                       adminCalcularSaldoTotalRecursivo(contas, 0, total));
+                       adminCalcularSaldoTotalRecursivo(*contas, 0, *total));
                 break;
             case 6:
-                adminListarContas(contas, total, filtroAtivas);
+                adminListarContas(*contas, *total, filtroAtivas);
                 break;
             case 7:
-                adminListarContas(contas, total, filtroBloqueadas);
+                adminListarContas(*contas, *total, filtroBloqueadas);
                 break;
+            case 8: {
+                const char *fn = "contas.dat";
+                if (salvarDados(*contas, *total, fn)) printf("Contas salvas em %s\n", fn);
+                else printf("Erro ao salvar contas.\n");
+                break;
+            }
+            case 9: {
+                const char *fn = "contas.dat";
+                if (carregarDados(contas, total, fn)) {
+                    // ajustar capacidade para pelo menos total
+                    if (*capacidade < *total) *capacidade = *total;
+                    printf("Contas carregadas de %s (total=%d)\n", fn, *total);
+                } else printf("Erro ao carregar contas ou arquivo inexistente.\n");
+                break;
+            }
+            case 10: {
+                int numero; int ch;
+                printf("Numero da conta: ");
+                if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); break; }
+                for (int i = 0; i < *total; i++) {
+                    if ((*contas)[i].id == numero) {
+                        (*contas)[i].flags ^= FLAG_PREMIUM; // toggle
+                        printf("Conta %d PREMIUM agora: %s\n", numero, ((*contas)[i].flags & FLAG_PREMIUM) ? "SIM" : "NAO");
+                        break;
+                    }
+                }
+                break;
+            }
+            case 11: {
+                int numero; int ch;
+                printf("Numero da conta: ");
+                if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); break; }
+                for (int i = 0; i < *total; i++) {
+                    if ((*contas)[i].id == numero) {
+                        printf("Conta %d - FLAG_PREMIUM=%s, FLAG_EMAIL_VERIFIED=%s\n",
+                               numero,
+                               ((*contas)[i].flags & FLAG_PREMIUM) ? "SIM" : "NAO",
+                               ((*contas)[i].flags & FLAG_EMAIL_VERIFIED) ? "SIM" : "NAO");
+                        break;
+                    }
+                }
+                break;
+            }
             case 0:
                 printf("Retornando ao menu principal.\n");
                 break;
@@ -392,6 +445,4 @@ void adminMenu(void) {
         }
 
     } while (opcao != 0);
-
-    free(contas);
 }
