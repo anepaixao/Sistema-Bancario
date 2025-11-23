@@ -93,3 +93,31 @@ void trimNewline(char *s) {
     if (i == 0) return;
     if (s[i-1] == '\n') s[i-1] = '\0';
 }
+
+// Buscar índice por id: retorna índice ou -1
+int buscarIndicePorId(Conta *contas, int total, int idBusca) {
+    if (!contas) return -1;
+    for (int i = 0; i < total; i++) {
+        if (contas[i].id == idBusca) return i;
+    }
+    return -1;
+}
+
+// Buscar índice por CPF: retorna índice ou -1
+int buscarIndicePorCPF(Conta *contas, int total, const char *cpf) {
+    if (!contas || !cpf) return -1;
+    for (int i = 0; i < total; i++) {
+        if (strcmp(contas[i].cpf, cpf) == 0) return i;
+    }
+    return -1;
+}
+
+// Gera próximo id: encontra maior id existente (assume 1000 se nenhuma conta)
+int gerarProximoId(Conta *contas, int total) {
+    int max = 1000;
+    if (!contas || total <= 0) return max + 1;
+    for (int i = 0; i < total; i++) {
+        if (contas[i].id > max) max = contas[i].id;
+    }
+    return max + 1;
+}

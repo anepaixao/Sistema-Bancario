@@ -8,377 +8,288 @@
 
 #define TAM 100
 
-typedef struct {
-    char cpf[15];
-    char senha[8];
-    char agencia[50];
-    double saldo;
-    char pix[TAM];
-} Usuario;
-
-Usuario usuario = {"", "", "", 1500.00, ""};
-
-int login(void) {
-    char buf[64];
-
+int login(Conta *contas, int total, int *outIdx) {
+    if (!contas || total <= 0) return 0;
     // Ler e validar CPF
+    char cpfbuf[64];
+    char senhabuf[32];
     while (1) {
         printf("Digite seu CPF: ");
-        if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
-        trimNewline(buf);
-        if (validarCPF(buf)) {
-            strncpy(usuario.cpf, buf, sizeof(usuario.cpf)-1);
-            usuario.cpf[sizeof(usuario.cpf)-1] = '\0';
-            break;
-        }
+        if (fgets(cpfbuf, sizeof(cpfbuf), stdin) == NULL) return 0;
+        trimNewline(cpfbuf);
+        if (validarCPF(cpfbuf)) break;
         printf("CPF invalido. Tente novamente.\n");
     }
 
     // Ler e validar senha (6 digitos numericos)
     while (1) {
         printf("Digite sua senha (6 digitos numericos): ");
-        if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
-        trimNewline(buf);
-        if (senhaValidaNDigitos(buf, 6)) {
-            strncpy(usuario.senha, buf, sizeof(usuario.senha)-1);
-            usuario.senha[sizeof(usuario.senha)-1] = '\0';
-            break;
-        }
+        if (fgets(senhabuf, sizeof(senhabuf), stdin) == NULL) return 0;
+        trimNewline(senhabuf);
+        if (senhaValidaNDigitos(senhabuf, 6)) break;
         printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
     }
 
+    // procurar conta correspondente
+    if (!contas || total <= 0) return 0;
+    for (int i = 0; i < total; i++) {
+        if (strcmp(contas[i].cpf, cpfbuf) == 0 && strcmp(contas[i].senha, senhabuf) == 0) {
+            if (outIdx) *outIdx = i;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int tela_principal(Conta *contas, int total, int idx) {
+    if (!contas || idx < 0 || idx >= total) return 0;
+    Conta *c = &contas[idx];
+    char agencia[128];
+    snprintf(agencia, sizeof(agencia), "%s - %s", NOME_BANCO, AGENCIA_PADRAO);
+
+    while (1) {
+        printf("\nAGENCIA: %s\t  SALDO: %.2f\t  CPF: %s\n\n", agencia, c->saldo, c->cpf);
+        printf("1. Consultar Saldo e Status\n");
+        printf("2. Depositar\n");
+        printf("3. Sacar (Com validacao de Saldo + Status Ativo)\n");
+        printf("4. Transferencia entre Contas (Usa busca em vetor)\n");
+        printf("5. Simulacao de Rendimento (Usa Recursividade)\n");
+        printf("6. Bloquear/Desbloquear Cartao (Usa Bitwise)\n");
+        printf("7. Alterar Senha (Usa manipulacao de strings do unir.h)\n");
+        printf("0. Sair\n");
+        printf("Escolha: ");
+        char opcbuf[16];
+        if (fgets(opcbuf, sizeof(opcbuf), stdin) == NULL) break;
+        trimNewline(opcbuf);
+        char *endptr_opc = NULL;
+        long lopc = strtol(opcbuf, &endptr_opc, 10);
+        int opc;
+        if (endptr_opc == opcbuf || *endptr_opc != '\0') { printf("Opcao invalida.\n"); continue; }
+        opc = (int)lopc;
+        if (opc == 0) break;
+        else if (opc == 1) {
+            // Consultar saldo e status
+            printf("Extrato - Conta %d | Nome: %s | CPF: %s | Saldo: R$ %.2f\n", c->id, c->nome, c->cpf, c->saldo);
+            printf("Status:");
+            if (c->flags & FLAG_BLOQUEADA) printf(" Bloqueado"); else printf(" Ativo");
+            if (c->flags & FLAG_PREMIUM) printf(" | Premium");
+            if (c->flags & FLAG_EMAIL_VERIFIED) printf(" | Email Verificado");
+            printf("\n");
+        } else if (opc == 2) {
+            // Depositar
+            printf("Valor a depositar: ");
+            char vbuf[64]; if (fgets(vbuf, sizeof(vbuf), stdin) == NULL) continue;
+            double v = atof(vbuf);
+            if (v <= 0) { printf("Valor invalido.\n"); continue; }
+            clienteDepositar(c, v);
+            printf("Deposito efetuado. Saldo atual: R$ %.2f\n", c->saldo);
+        } else if (opc == 3) {
+            // Sacar (valida saldo e status)
+            if (c->flags & FLAG_BLOQUEADA) { printf("Conta/cartao bloqueado. Operacao nao permitida.\n"); continue; }
+            printf("Valor a sacar: ");
+            char vbuf[64]; if (fgets(vbuf, sizeof(vbuf), stdin) == NULL) continue;
+            double v = atof(vbuf);
+            if (v <= 0) { printf("Valor invalido.\n"); continue; }
+            if (c->saldo < (float)v) { printf("Saldo insuficiente.\n"); continue; }
+            if (clienteSacar(c, v)) {
+                printf("Saque realizado. Saldo atual: R$ %.2f\n", c->saldo);
+            } else {
+                printf("Saque falhou.\n");
+            }
+        } else if (opc == 4) {
+            // Transferência entre contas
+            if (c->flags & FLAG_BLOQUEADA) { printf("Conta/cartao bloqueado. Operacao nao permitida.\n"); continue; }
+            printf("Numero da conta destino: ");
+            char idbuf[32]; if (fgets(idbuf, sizeof(idbuf), stdin) == NULL) continue;
+            trimNewline(idbuf);
+            char *endptr_id = NULL; long ldest = strtol(idbuf, &endptr_id, 10);
+            if (endptr_id == idbuf || *endptr_id != '\0') { printf("Conta destino invalida.\n"); continue; }
+            int destId = (int)ldest;
+            int destIdx = -1;
+            for (int i = 0; i < total; i++) if (contas[i].id == destId) { destIdx = i; break; }
+            if (destIdx < 0) { printf("Conta destino nao encontrada.\n"); continue; }
+            printf("Valor a transferir: "); char vbuf2[64]; if (fgets(vbuf2, sizeof(vbuf2), stdin) == NULL) continue;
+            trimNewline(vbuf2);
+            char *endptr_v2 = NULL; double v = strtod(vbuf2, &endptr_v2);
+            if (endptr_v2 == vbuf2 || *endptr_v2 != '\0') { printf("Valor invalido.\n"); continue; }
+            if (v <= 0) { printf("Valor invalido.\n"); continue; }
+            if (clienteTransferir(contas, total, idx, destIdx, v)) {
+                printf("Transferencia realizada. Saldo atual: R$ %.2f\n", c->saldo);
+            } else {
+                printf("Falha na transferencia.\n");
+            }
+        } else if (opc == 5) {
+            // Simulação de rendimento
+            printf("Taxa mensal (ex: 0.01 = 1%%): "); char tbuf[32]; if (fgets(tbuf, sizeof(tbuf), stdin) == NULL) continue;
+            trimNewline(tbuf);
+            char *endptr_taxa = NULL; double taxa = strtod(tbuf, &endptr_taxa);
+            if (endptr_taxa == tbuf || *endptr_taxa != '\0') { printf("Taxa invalida.\n"); continue; }
+            printf("Meses: "); char mbuf[16]; if (fgets(mbuf, sizeof(mbuf), stdin) == NULL) continue;
+            trimNewline(mbuf);
+            char *endptr_m = NULL; long lmeses = strtol(mbuf, &endptr_m, 10);
+            if (endptr_m == mbuf || *endptr_m != '\0') { printf("Meses invalidos.\n"); continue; }
+            int meses = (int)lmeses;
+            double futuro = simularRendimentoRecursivo(c->saldo, taxa, meses);
+            printf("Saldo atual: R$ %.2f -> apos %d meses (taxa %.4f): R$ %.2f\n", c->saldo, meses, taxa, futuro);
+        } else if (opc == 6) {
+            // Bloquear/Desbloquear cartão (bitwise)
+            if (clienteToggleBloqueio(c)) {
+                if (c->flags & FLAG_BLOQUEADA) printf("Conta/cartao agora BLOQUEADO.\n"); else printf("Conta/cartao agora DESBLOQUEADO.\n");
+            } else {
+                printf("Operacao de bloqueio falhou.\n");
+            }
+        } else if (opc == 7) {
+            // Alterar senha
+            printf("Digite sua senha atual: ");
+            char cur[32]; if (fgets(cur, sizeof(cur), stdin) == NULL) continue; trimNewline(cur);
+            if (strcmp(cur, c->senha) != 0) { printf("Senha atual incorreta.\n"); continue; }
+            if (clienteAlterarSenha(c)) {
+                printf("Senha alterada com sucesso.\n");
+            } else {
+                printf("Falha ao alterar senha.\n");
+            }
+        } else {
+            printf("Opcao invalida.\n");
+        }
+    }
+
+    return 0;
+}
+
+// Legacy PIX / boleto / extrato / opcoes removed — client now uses Conta-based APIs
+
+// Operacoes sobre Conta
+int clienteDepositar(Conta *c, double valor) {
+    if (!c || valor <= 0.0) return 0;
+    c->saldo += (float)valor;
     return 1;
 }
 
-int tela_principal() {
-    
-    strcpy(usuario.agencia, "001 - AGENCIA DO CENTRO");
-    char cabecalho[80];
-    strcpy(cabecalho, "AGENCIA:");
-    strcat(cabecalho, usuario.agencia);
-    
-    printf("\n%s\t  SALDO: %.2f\t  CPF: %s\n\n", cabecalho, usuario.saldo, usuario.cpf);
-    puts("\nEXTRATO\t DEPOSITO\t SAQUE\t TRANSFERENCIA\n\n");
-    puts("\noutras opcões\n");
-    
-    
-    return 0;
+int clienteSacar(Conta *c, double valor) {
+    if (!c || valor <= 0.0) return 0;
+    if (c->saldo < (float)valor) return 0;
+    c->saldo -= (float)valor;
+    return 1;
 }
 
-
-double deposito(double valor) {
-    
-    usuario.saldo += valor;
-    
-    printf("+ R$ %.2f\n", valor);
-    
-    return usuario.saldo;
+int clienteTransferir(Conta *contas, int total, int fromIdx, int toIdx, double valor) {
+    if (!contas || fromIdx < 0 || toIdx < 0 || fromIdx >= total || toIdx >= total) return 0;
+    Conta *from = &contas[fromIdx];
+    Conta *to = &contas[toIdx];
+    if (from->flags & FLAG_BLOQUEADA) return 0;
+    if (to->flags & FLAG_BLOQUEADA) return 0;
+    if (valor <= 0.0 || from->saldo < (float)valor) return 0;
+    from->saldo -= (float)valor;
+    to->saldo += (float)valor;
+    return 1;
 }
 
-void pix_aleatorio(){
-    
-    sprintf(usuario.pix, "%s@banco%s.com", usuario.agencia, usuario.cpf);
-    
-    printf("Nova chave PIX gerada: %s\n", usuario.pix);
-    
+double simularRendimentoRecursivo(double saldo, double taxa, int meses) {
+    if (meses <= 0) return saldo;
+    double novo = saldo + saldo * taxa;
+    return simularRendimentoRecursivo(novo, taxa, meses - 1);
 }
 
-int pix_cadastro(){
-
-int b; 
-char numero[12];  
-char email[50];
-
-    printf("Escolha o que voce quer cadastrar: 1 - CPF\t 2 - Numero\t 3 - Email\t");
-    scanf("%d", &b);  
-
-    switch(b){
-
-        case 1:
-        
-            printf("%s agora é sua nova chave\n", usuario.cpf);
-            strcpy(usuario.pix, usuario.cpf);
-            
-        break;
-
-        case 2:
-        
-            printf("Digite seu numero: \n");
-            scanf("%[^\n]", numero);
-            printf("%s é sua nova chave agora\n", numero);
-            strcpy(usuario.pix, numero);
-            
-        break;
-
-        case 3:
-        
-            printf("Digite seu email: \n");
-            scanf("%s\n", email);
-            printf("%s é agora sua nova chave", email);
-            strcpy(usuario.pix, email);
-            
-        break;
-
-    default:
-    
-printf("Opção inválida!\n");
-
+int clienteBloquearConta(Conta *c) {
+    if (!c) return 0;
+    c->flags |= FLAG_BLOQUEADA;
+    return 1;
 }
 
-    return 0;
-}
-
-int pix_cadastrados(){
-
-    if(strlen(usuario.pix) == 0) {
-        
-        printf("Nenhuma chave PIX cadastrada.\n");
+int clienteToggleBloqueio(Conta *c) {
+    if (!c) return 0;
+    if (c->flags & FLAG_BLOQUEADA) {
+        c->flags &= (unsigned char)(~FLAG_BLOQUEADA);
+    } else {
+        c->flags |= FLAG_BLOQUEADA;
     }
-    
-    else {
-        
-        printf("Chave PIX cadastrada: %s\n", usuario.pix);
+    return 1;
+}
+
+int clienteAlterarSenha(Conta *c) {
+    if (!c) return 0;
+    // senha atual validated by caller (menu) — prompt for new senha
+    char nova[32];
+    printf("Digite a nova senha (6 digitos numericos): ");
+    if (fgets(nova, sizeof(nova), stdin) == NULL) return 0;
+    trimNewline(nova);
+    if (!senhaValidaNDigitos(nova, 6)) {
+        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
+        return 0;
     }
-
-    return 0;
+    // copy to account
+    strncpy(c->senha, nova, sizeof(c->senha));
+    c->senha[sizeof(c->senha)-1] = '\0';
+    return 1;
 }
 
-void qr_code(){
-    printf("\n");
-    printf("/////////////////////// QR CODE /////////////////////\n");
-    printf("\n");
-    printf("|||| |||||||  |||||| ||         ||||  ||||||||| ||||| ||\n");
-    printf("||||                 ||         ||||                  ||\n");
-    printf("||||                 ||         ||||                  ||\n");
-    printf("||||                 ||         ||||                  ||\n");
-    printf("||||                 ||         ||||                  ||\n");
-    printf("|||| |||||||  |||||| ||         ||||                  ||\n");
-    printf("                                ||||                  ||\n");
-    printf("  |||| |||||||||| |||           ||||                  ||\n");
-    printf("    ||     ||||||  |||          ||||  ||||||||| ||||| ||\n");
-    printf(" ||||||      ||||||||||||||             |||||||||||  || \n");
-    printf("    |||||||||||  ||||||||||||  ||||||           ||||||||\n");
-    printf("    ||||                       ||||||                   \n");
-    printf("    ||||                       ||||||  |||||||||||  |||||\n");
-    printf("    ||||                       ||||||  |||||           ||\n");
-    printf("    ||||                       ||||||  |||||           ||\n");
-    printf("    ||||                       ||||||  |||||           ||\n");
-    printf("    ||||                       ||||||  |||||           ||\n");
-    printf("    ||||                       ||||||  |||||| |||||||| ||\n");
-    printf("    ||||                       ||||||                    \n");
-    printf("    |||||   ||||||||||||   ||||||||||           ||||||   \n");
-    printf("\n");
-    printf("Escaneie com a camera do celular ou o app do banco\n\n");
-
-}
-
-
-
-void boleto(){
-    printf("\n");
-    printf("____________________________________________________________________________________________\n");
-    printf("|    AGENCIA  DO CENTRO  |               |  00000002305402030900055J607500 - 01             |\n");
-    printf("_________________________|_______________|__________________________________________________|\n");
-    printf("|    LOCAL DE PAGAMENTO                     |                VENCIMENTO                     |\n");
-    printf("|                                           |                                               |\n");
-    printf("|    PREFERENCIALMENTE BANCO DO CENTRO      |                10/10/2025                     |\n");
-    printf("____________________________________________|_______________________________________________|\n");
-    printf("|    CEDENTE                                |      NOSSO NUMERO                             |\n");
-    printf("|                                           |      +557399999 - 9999                        |\n");
-    printf("|    USUARIO SILVA SANTOS                   |_______________________________________________|\n"); 
-    printf("|                                           |      VALOR DO DOCUMENTO                       |\n");
-    printf("|___________________________________________|      R$ 10.000                                |\n");
-    printf("|    INSTRUÇÕES                             |_______________________________________________|\n");
-    printf("|                                           |      DESCONTO\\ABATIMENTO                     |\n");  
-    printf("|                                           |      R$ 00,00                                 |\n");
-    printf("|                                           | _____________________________________________ |\n");
-    printf("|                                                                                           |\n");
-    printf("|                                                                                           |\n");
-    printf("|                                                                                           |\n");
-    printf("|                                                                                           |\n");
-    printf("|                                                                                           |\n");
-    printf("|                                                                                           |\n");
-    printf("_________________________|_______________|__________________________________________________|\n");
-    printf("|    SACADO                                                                                 |\n");
-    printf("|                                                                                           |\n");
-    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
-    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
-    printf("|        ||   ||||||   |||||||||  || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
-    printf("|        5A   ÇJD54471R EVBUHUHHH 85 74 RYHE2GU   RNKJNENN 7846     054 0000000000000001    |\n");
-    printf("____________________________________________________________________________________________\n");
-}
-
-int extrato(){
-    
-    printf("CPF - %s\n", usuario.cpf);
-    printf("Saldo atual - R$ %f\n", usuario.saldo);
-    printf("Nenhuma compra foi efetuada ate agora");
-
-return 0;
-}
-
-double saque(double valor) {
-    int tentativas = 3;
-    while (tentativas > 0) {
-        
-        if (valor <= usuario.saldo && valor > 0) {
-            usuario.saldo -= valor;
-            return usuario.saldo;
-        }
-        tentativas--;
-    }
-    return usuario.saldo;
-}
-int opcoes(char *escolha) {
-    double valor; 
-    char transferencia[20] = "";
-    char pix[30] = "";
-    
-    if(strcmp(escolha, "EXTRATO") == 0) {
-        extrato();
-    }
-    else if(strcmp(escolha, "DEPOSITO") == 0) {
-        printf("Digite a forma de deposito: PIX\t  BOLETO\t  TED\t");
-        scanf("%s", transferencia);
-        
-        if(strcmp(transferencia, "PIX") == 0){
-        printf("Escolha uma opção: gerar chave aleatoria\t fazer o cadastro de uma nova chave\t ver chaves disponiveis\t gerar qr code de chave aleatoria\n");
-        
-        scanf(" %[^\n]s", pix);
-        
-        if(strcmp(pix, "gerar chave aleatoria") == 0){
-        pix_aleatorio();
-        }
-        
-        else if(strcmp(pix, "fazer o cadastro de uma nova chave") == 0){
-        pix_cadastro();
-        }
-        
-        else if(strcmp(pix, "ver chaves disponiveis") == 0){
-        pix_cadastrados();
-        }
-        
-        else if(strcmp(pix, "gerar qr code de chave aleatoria") == 0){
-        qr_code();
-        }
-        }
-        
-        else if(strcmp(transferencia, "BOLETO") == 0){
-        boleto();
-        }
-        
-        else if(strcmp(transferencia, "TED") == 0){
-        printf("Digite o valor a ser depositado: ");
-        scanf("%lf", &valor);
-        
-        double novo_saldo = deposito(valor);
-        printf("Operação concluída! Saldo final: R$ %.2f\n", novo_saldo);
+// Menu do cliente: login / criar conta (sem variáveis globais)
+void clienteMenu(Conta **contas, int *total, int *capacidade) {
+    if (!contas || !total || !capacidade) return;
+    while (1) {
+        printf("\n--- Menu Cliente - %s (%s) ---\n", NOME_BANCO, AGENCIA_PADRAO);
+        printf("1. Login\n2. Criar conta\n0. Voltar\n");
+        printf("Escolha: ");
+        char buf[16]; if (fgets(buf, sizeof(buf), stdin) == NULL) break;
+        int opc = atoi(buf);
+        if (opc == 0) break;
+        else if (opc == 1) {
+            int idx = -1;
+            if (*contas == NULL || *total <= 0) {
+                printf("Nenhuma conta cadastrada. Crie uma conta primeiro.\n");
+            } else if (login(*contas, *total, &idx)) {
+                tela_principal(*contas, *total, idx);
+            } else {
+                printf("Login falhou. CPF ou senha invalidos.\n");
+            }
+        } else if (opc == 2) {
+            clienteCriarConta(contas, total, capacidade);
+        } else {
+            printf("Opcao invalida.\n");
         }
     }
-    else if(strcmp(escolha, "SAQUE") == 0) {
-        printf("Digite o valor a ser sacado: ");
-        scanf("%lf", &valor);
-    }
-    else if(strcmp(escolha, "TRANSFERENCIA") == 0) {
-        printf("Transferencia selecionada\n");
-    }
-    else if(strcmp(escolha, "OUTRAS OPÇÕES") == 0) {
-        printf("Outras opcoes selecionadas\n");
-    }
-    else {
-        printf("OPÇÃO INVÁLIDA!\n");
-    }
-    return 0;
 }
 
-// Funções que operam sobre o vetor de contas passado pelo main
 void clienteCriarConta(Conta **contas, int *total, int *capacidade) {
     if (!contas || !total || !capacidade) return;
-    // garantir capacidade mínima
     if (*capacidade < 1) *capacidade = 2;
     if (*contas == NULL) {
         *contas = (Conta *)malloc((size_t)(*capacidade) * sizeof(Conta));
         if (!*contas) { *capacidade = 0; return; }
     }
     if (*total + 1 > *capacidade) {
-        int nova = *capacidade * 2;
+        int nova = (*capacidade) * 2;
         Conta *tmp = (Conta *)realloc(*contas, (size_t)nova * sizeof(Conta));
         if (!tmp) return;
         *contas = tmp;
         *capacidade = nova;
     }
 
-    // preencher nova conta
     Conta *c = &(*contas)[*total];
-    // gerar id sequencial (busca maior id)
-    int maxid = 1000;
-    for (int i = 0; i < *total; i++) if ((*contas)[i].id > maxid) maxid = (*contas)[i].id;
-    c->id = maxid + 1;
-
-    // Ler dados do usuário
-    int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
-    printf("Nome completo: ");
+    // Ler nome
+    printf("Nome: ");
     if (fgets(c->nome, sizeof(c->nome), stdin) == NULL) return;
-    c->nome[strcspn(c->nome, "\n")] = '\0';
-    // Ler e validar CPF
-    char buffer[64];
+    trimNewline(c->nome);
+    // Ler CPF
     while (1) {
-        printf("CPF (somente numeros ou com pontuacao): ");
-        if (fgets(buffer, sizeof(buffer), stdin) == NULL) return;
-        trimNewline(buffer);
-        if (validarCPF(buffer)) {
-            strncpy(c->cpf, buffer, sizeof(c->cpf)-1);
-            c->cpf[sizeof(c->cpf)-1] = '\0';
-            break;
-        }
+        printf("CPF: ");
+        if (fgets(c->cpf, sizeof(c->cpf), stdin) == NULL) return;
+        trimNewline(c->cpf);
+        if (validarCPF(c->cpf)) break;
         printf("CPF invalido. Tente novamente.\n");
     }
-
-    // Ler e validar senha: exatamente 6 digitos numericos com confirmacao
+    // Ler senha
     while (1) {
-        char senha1[16];
-        char senha2[16];
         printf("Senha (6 digitos numericos): ");
-        if (fgets(senha1, sizeof(senha1), stdin) == NULL) { printf("Erro de leitura da senha.\n"); continue; }
-        trimNewline(senha1);
-        printf("Confirmar senha: ");
-        if (fgets(senha2, sizeof(senha2), stdin) == NULL) { printf("Erro na confirmacao da senha.\n"); continue; }
-        trimNewline(senha2);
-        if (!senhaValidaNDigitos(senha1, 6) || !senhaValidaNDigitos(senha2, 6)) {
-            printf("Senha invalida: deve conter exatamente 6 digitos numericos.\n");
-            continue;
-        }
-        if (strcmp(senha1, senha2) != 0) {
-            printf("Senhas diferentes.\n");
-            continue;
-        }
-        strncpy(c->senha, senha1, sizeof(c->senha)-1);
-        c->senha[sizeof(c->senha)-1] = '\0';
-        break;
+        char senhabuf[32]; if (fgets(senhabuf, sizeof(senhabuf), stdin) == NULL) return;
+        trimNewline(senhabuf);
+        if (senhaValidaNDigitos(senhabuf, 6)) { strncpy(c->senha, senhabuf, sizeof(c->senha)); c->senha[sizeof(c->senha)-1]='\0'; break; }
+        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
     }
     c->saldo = 0.0f;
     c->flags = 0;
+    // Id gerado centralmente para manter consistência
+    c->id = gerarProximoId(*contas, *total);
     (*total)++;
     printf("Conta criada com id %d\n", c->id);
-}
-
-void clienteMenu(Conta **contas, int *total, int *capacidade) {
-    // para já manter compatibilidade com funções antigas, apenas um menu simples
-    int opc = 0;
-    printf("\nMenu Cliente\n");
-    printf("1 - Criar conta\n");
-    printf("2 - Login\n");
-    printf("0 - Voltar\n");
-    printf("Escolha: ");
-    if (scanf("%d", &opc) != 1) { int ch; while ((ch = getchar()) != '\n' && ch != EOF) {} return; }
-    int ch; while ((ch = getchar()) != '\n' && ch != EOF) {}
-    if (opc == 1) {
-        clienteCriarConta(contas, total, capacidade);
-    } else if (opc == 2) {
-        if (login()) {
-            tela_principal();
-        } else {
-            printf("Falha no login do cliente.\n");
-        }
-    }
 }

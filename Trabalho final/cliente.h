@@ -7,17 +7,28 @@
 #include "banco.h"
 
 // Prototipos das funcoes implementadas em cliente.c
-int login(void);
-int tela_principal(void);
-double deposito(double valor);
-void pix_aleatorio(void);
-int pix_cadastro(void);
-int pix_cadastrados(void);
-void qr_code(void);
-void boleto(void);
-int extrato(void);
-double saque(double valor);
-int opcoes(char *escolha);
+// autentica cliente e retorna índice da conta autenticada via outIdx (retorna 1=ok,0=falha)
+int login(Conta *contas, int total, int *outIdx);
+// Tela principal do cliente — recebe o vetor de contas e o índice da conta autenticada
+int tela_principal(Conta *contas, int total, int idx);
+// Funções que atuam diretamente sobre uma conta
+int clienteDepositar(Conta *c, double valor);
+int clienteSacar(Conta *c, double valor);
+
+// Transferencia entre contas pelo índice (retorna 1 se ok)
+int clienteTransferir(Conta *contas, int total, int fromIdx, int toIdx, double valor);
+
+// Simula rendimento recursivamente: aplica `taxa` mensal sobre `saldo` por `meses` meses
+double simularRendimentoRecursivo(double saldo, double taxa, int meses);
+
+// Bloqueio de segurança: seta a flag de bloqueio na conta (1=sucesso)
+int clienteBloquearConta(Conta *c);
+
+// Alterna bloqueio (bloquear/desbloquear) — usa operações bitwise
+int clienteToggleBloqueio(Conta *c);
+
+// Alterar senha da conta (valida com unir.h)
+int clienteAlterarSenha(Conta *c);
 
 // Novas funções que recebem o vetor de contas (encapsulamento sem globais)
 void clienteMenu(Conta **contas, int *total, int *capacidade);

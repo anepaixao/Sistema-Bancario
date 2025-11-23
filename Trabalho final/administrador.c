@@ -112,23 +112,9 @@ void adminCriarConta(Conta *contas, int *total) {
     int ch;
     printf("\nNova Conta\n");
 
-    // Gera automaticamente o número da conta.
-    // Padrão: sequencial começando em 1001. Evita duplicatas verificando as contas já criadas.
-    static int proximaConta = 1001;
-    int candidato = proximaConta;
-    int duplicado;
-    do {
-        duplicado = 0;
-        for (int i = 0; i < *total; i++) {
-            if (contas[i].id == candidato) {
-                duplicado = 1;
-                candidato++;
-                break;
-            }
-        }
-    } while (duplicado);
-    contas[*total].id = candidato;
-    proximaConta = candidato + 1;
+    // Gera automaticamente o número da conta usando o utilitário centralizado
+    // para evitar lógica duplicada entre módulos.
+    contas[*total].id = gerarProximoId(contas, *total);
 
     // Consumir newline pendente do scanf do menu anterior
     while ((ch = getchar()) != '\n' && ch != EOF) { }
@@ -243,10 +229,18 @@ void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
 
 // Função para bloquear conta
 void adminBloquearConta(Conta *contas, int total) {
-    int numero; int ch;
+    int numero;
     printf("\nBloquear Conta\n");
     printf("Numero da conta: ");
-    if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
+    {
+        char buf[64];
+        if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); return; }
+        trimNewline(buf);
+        char *endptr = NULL;
+        long v = strtol(buf, &endptr, 10);
+        if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); return; }
+        numero = (int)v;
+    }
 
     for (int i = 0; i < total; i++) {
         if (contas[i].id == numero) {
@@ -261,10 +255,18 @@ void adminBloquearConta(Conta *contas, int total) {
 
 // Função para desbloquear conta
 void adminDesbloquearConta(Conta *contas, int total) {
-    int numero; int ch;
+    int numero;
     printf("\nDesbloquear Conta\n");
     printf("Numero da conta: ");
-    if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); return; }
+    {
+        char buf[64];
+        if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); return; }
+        trimNewline(buf);
+        char *endptr = NULL;
+        long v = strtol(buf, &endptr, 10);
+        if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); return; }
+        numero = (int)v;
+    }
 
     for (int i = 0; i < total; i++) {
         if (contas[i].id == numero) {
@@ -287,7 +289,7 @@ float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
 
 // Função principal do menu do administrador
 void adminMenu(Conta **contas, int *total, int *capacidade) {
-    int opcao; int ch;
+    int opcao;
 
     if (!contas || !total || !capacidade) return;
     if (*contas == NULL && *capacidade > 0) {
@@ -302,7 +304,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
     adminMatrizDinamicaPequena();
 
     do {
-        printf("\nMenu do Administrador\n");
+        printf("\nMenu do Administrador - %s (%s)\n", NOME_BANCO, AGENCIA_PADRAO);
         printf("1 - Criar conta\n");
         printf("2 - Listar contas\n");
         printf("3 - Bloquear conta\n");
@@ -316,7 +318,18 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
         printf("11 - Mostrar flags de uma conta\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
-        if (scanf("%d", &opcao) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } opcao = -1; }
+        {
+            char buf[64];
+            if (fgets(buf, sizeof(buf), stdin) == NULL) {
+                opcao = -1;
+            } else {
+                trimNewline(buf);
+                char *endptr = NULL;
+                long v = strtol(buf, &endptr, 10);
+                if (endptr == buf || *endptr != '\0') opcao = -1;
+                else opcao = (int)v;
+            }
+        }
 
         switch (opcao) {
             case 1:
@@ -361,9 +374,17 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 break;
             }
             case 10: {
-                int numero; int ch;
+                int numero;
                 printf("Numero da conta: ");
-                if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); break; }
+                {
+                    char buf[64];
+                    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); break; }
+                    trimNewline(buf);
+                    char *endptr = NULL;
+                    long v = strtol(buf, &endptr, 10);
+                    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); break; }
+                    numero = (int)v;
+                }
                 for (int i = 0; i < *total; i++) {
                     if ((*contas)[i].id == numero) {
                         (*contas)[i].flags ^= FLAG_PREMIUM; // toggle
@@ -374,9 +395,17 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 break;
             }
             case 11: {
-                int numero; int ch;
+                int numero;
                 printf("Numero da conta: ");
-                if (scanf("%d", &numero) != 1) { while ((ch = getchar()) != '\n' && ch != EOF) { } printf("Entrada invalida.\n"); break; }
+                {
+                    char buf[64];
+                    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); break; }
+                    trimNewline(buf);
+                    char *endptr = NULL;
+                    long v = strtol(buf, &endptr, 10);
+                    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); break; }
+                    numero = (int)v;
+                }
                 for (int i = 0; i < *total; i++) {
                     if ((*contas)[i].id == numero) {
                         printf("Conta %d - FLAG_PREMIUM=%s, FLAG_EMAIL_VERIFIED=%s\n",

@@ -16,6 +16,10 @@ typedef struct {
 #define FLAG_PREMIUM        (1u << 1)
 #define FLAG_EMAIL_VERIFIED (1u << 2)
 
+// Constantes globais do sistema (agência e nome do banco)
+#define AGENCIA_PADRAO "0001-9"
+#define NOME_BANCO "BANCO DO CENTRO"
+
 // Protótipos básicos (os módulos do sistema podem declarar mais)
 int adminAutenticar(void);
 void adminMenu(Conta **contas, int *total, int *capacidade);

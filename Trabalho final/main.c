@@ -29,14 +29,23 @@ int main(void) {
     }
 
     do {
-        printf("\n===== SISTEMA BANCARIO =====\n");
+        printf("\n===== %s =====\n", NOME_BANCO);
+        printf("Agencia: %s\n", AGENCIA_PADRAO);
         printf("1. Acessar modulo do Administrador\n");
         printf("2. Acessar modulo do Cliente\n");
         printf("0. Sair\n");
         printf("Escolha uma opcao: ");
-        if (scanf("%d", &opcao) != 1) {
-            int c; while ((c = getchar()) != '\n' && c != EOF) {}
-            opcao = -1;
+        {
+            char buf[64];
+            if (fgets(buf, sizeof(buf), stdin) == NULL) {
+                opcao = -1;
+            } else {
+                trimNewline(buf);
+                char *endptr = NULL;
+                long v = strtol(buf, &endptr, 10);
+                if (endptr == buf || *endptr != '\0') opcao = -1;
+                else opcao = (int)v;
+            }
         }
 
         switch (opcao) {
