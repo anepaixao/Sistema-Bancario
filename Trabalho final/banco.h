@@ -20,13 +20,11 @@ typedef struct {
 #define AGENCIA_PADRAO "0001-9"
 #define NOME_BANCO "BANCO DO CENTRO"
 
-// Protótipos básicos (os módulos do sistema podem declarar mais)
-int adminAutenticar(void);
-void adminMenu(Conta **contas, int *total, int *capacidade);
-
 // Persistência e logging (implementadas em main.c)
 int salvarDados(const Conta *contas, int total, const char *arquivo);
 int carregarDados(Conta **contas, int *total, const char *arquivo);
 void registrarLog(int idConta, const char *descricao);
+// Gerencia capacidade do vetor de contas (alloc/realloc)
+int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario);
 
 #endif

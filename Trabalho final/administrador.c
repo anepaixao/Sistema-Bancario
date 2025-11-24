@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <errno.h>
-#include "banco.h"
+#include "administrador.h"
 #include "unir.h"
 
 // O main passa os ponteiros para as funções
@@ -12,20 +12,7 @@
 
 // CPF validation and digit extraction moved to `unir.c` (see unir.h)
 
-// Garante capacidade do vetor de contas usando ponteiro para ponteiro e ref de inteiro
-static int adminGarantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
-    if (necessario <= *refCapacidade) return 1;
-    int nova = *refCapacidade;
-    while (nova < necessario) {
-        if (nova < 1) nova = 1;
-        else nova *= 2;
-    }
-    void *tmp = realloc(*refContas, (size_t)nova * sizeof(Conta));
-    if (!tmp) return 0;
-    *refContas = (Conta *)tmp;
-    *refCapacidade = nova;
-    return 1;
-}
+// Nota: gerenciamento de capacidade foi movido para `banco.c` como `garantirCapacidade`.
 
 // Lista encadeada simples para índices de contas bloqueadas
 typedef struct NoBloq {
@@ -89,8 +76,7 @@ int adminAutenticar(void) {
     char user[64];
     char pass[64];
 
-    // limpar newline pendente
-    int ch; while ((ch = getchar()) != '\n' && ch != EOF) { }
+    // Nota: não limpar stdin aqui — a leitura do menu principal usa fgets
     printf("\nAutenticacao do Administrador\n");
     printf("Usuario: ");
     if (fgets(user, sizeof(user), stdin) == NULL) return 0;
@@ -109,15 +95,13 @@ int adminAutenticar(void) {
 
 // Função auxiliar para criar uma nova conta
 void adminCriarConta(Conta *contas, int *total) {
-    int ch;
     printf("\nNova Conta\n");
 
     // Gera automaticamente o número da conta usando o utilitário centralizado
     // para evitar lógica duplicada entre módulos.
     contas[*total].id = gerarProximoId(contas, *total);
 
-    // Consumir newline pendente do scanf do menu anterior
-    while ((ch = getchar()) != '\n' && ch != EOF) { }
+    // Observacao: nao consumir stdin aqui — entradas sao lidas com fgets
     // Ler nome não vazio
     while (1) {
         printf("Nome completo: ");
@@ -316,6 +300,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
         printf("9 - Carregar contas de arquivo\n");
         printf("10 - Alternar flag PREMIUM (bitwise)\n");
         printf("11 - Mostrar flags de uma conta\n");
+        printf("12 - Remover conta\n");
         printf("0 - Voltar\n");
         printf("Escolha: ");
         {
@@ -333,7 +318,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
 
         switch (opcao) {
             case 1:
-                if (!adminGarantirCapacidade(contas, capacidade, (*total) + 1)) {
+                if (!garantirCapacidade(contas, capacidade, (*total) + 1)) {
                     printf("Erro de realocacao de memoria.\n");
                     return;
                 }
@@ -417,6 +402,10 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 }
                 break;
             }
+            case 12: {
+                adminRemoverConta(contas, total);
+                break;
+            }
             case 0:
                 printf("Retornando ao menu principal.\n");
                 break;
@@ -425,4 +414,34 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
         }
 
     } while (opcao != 0);
+}
+
+// Remove uma conta do vetor: procura por id, move elementos à esquerda e decrementa total
+void adminRemoverConta(Conta **contas, int *total) {
+    if (!contas || !total || *total <= 0 || *contas == NULL) {
+        printf("Nenhuma conta para remover.\n");
+        return;
+    }
+    printf("\nRemover Conta\n");
+    printf("Numero da conta: ");
+    char buf[64];
+    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); return; }
+    trimNewline(buf);
+    char *endptr = NULL;
+    long v = strtol(buf, &endptr, 10);
+    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); return; }
+    int numero = (int)v;
+
+    int idx = -1;
+    for (int i = 0; i < *total; i++) {
+        if ((*contas)[i].id == numero) { idx = i; break; }
+    }
+    if (idx < 0) { printf("Conta nao encontrada.\n"); return; }
+
+    // move elementos à esquerda
+    for (int j = idx; j < (*total) - 1; j++) {
+        (*contas)[j] = (*contas)[j+1];
+    }
+    (*total)--;
+    printf("Conta %d removida.\n", numero);
 }
