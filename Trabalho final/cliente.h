@@ -1,5 +1,5 @@
-#ifndef BANCO_H
-#define BANCO_H
+#ifndef CLIENTE_H
+#define CLIENTE_H
 
 #include <stdio.h>
 #include <stdlib.h>
