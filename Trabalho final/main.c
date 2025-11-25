@@ -36,6 +36,36 @@ int main(void) {
         }
     } while (opcao != 0);
 
+    /*Main Cliente
+    #include "banco.h"
+
+int main(void) {
+    setlocale(LC_ALL, "Portuguese_Brazil.UTF-8");
+
+    char escolhar[20];
+
+    usuario.configuracoes = NOTIFICACOES_ATIVAS | CONFIRMACAO_VALORES;
+
+    int resultado_login = login();
+
+    if(resultado_login == -1) {
+        printf("Falha no login. Encerrando programa.\n");
+        system("PAUSE");
+        return 1;
+    }
+
+    tela_principal();
+
+    printf("DIGITE A OPÇÃO QUE DESEJA: ");
+    scanf(" %19[^\n]", escolhar);
+
+    opcoes(escolhar);
+
+    printf("Obrigada por usar o banco!\n");
+
+    return 0;
+}*/
+
     return 0;
 }
 
