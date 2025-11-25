@@ -37,7 +37,6 @@ int main(void) {
     } while (opcao != 0);
 
     /*Main Cliente
-    #include "banco.h"
 
 int main(void) {
     setlocale(LC_ALL, "Portuguese_Brazil.UTF-8");
