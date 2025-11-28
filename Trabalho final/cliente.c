@@ -1,295 +1,597 @@
-
-#include "cliente.h"
-#include "banco.h"
-#include "unir.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include "cliente.h"
+#include "banco.h"
+#include "unir.h"
 
-#define TAM 100
+// --- PROTÓTIPOS DAS FUNÇÕES VISUAIS ---
+void boleto(void);
+void qr_code(void);
+void plano_protecaoCONTRATO(void);
+void plano_protecaoCOMPROVANTE(void);
+void plano_Limitehorarioparatransacoes(void);
+void plano_Limitehorarioparatransacoescomprovante(void);
+void plano_ConfirmacaoporsenhaparavaloresaltosCONTRATO(void);
+void plano_ConfirmacaoporsenhaparavaloresaltosCOMPROVANTE(void);
 
+// --- FUNÇÕES AUXILIARES ---
+
+// Bitwise: Movido para fora para corrigir erro de escopo
+#define NOTIFICACOES_ATIVAS (1u << 4)
+#define TRANSACOES_NOTURNAS (1u << 5)
+#define CONFIRMACAO_VALORES (1u << 6)
+
+void ativar_configuracao(unsigned char *config, unsigned char flag) {
+    *config |= flag;
+    printf("Configuracao ativada.\n");
+}
+
+void desativar_configuracao(unsigned char *config, unsigned char flag) {
+    *config &= ~flag;
+    printf("Configuracao desativada.\n");
+}
+
+int verificar_configuracao(unsigned char config, unsigned char flag) {
+    return (config & flag) != 0;
+}
+
+// Recursão: Simulação de Rendimento (Adaptada)
+double deposito_recursivo_simulado(double saldo, double taxa, int meses) {
+    if (meses <= 0) return saldo;
+    return deposito_recursivo_simulado(saldo * (1 + taxa), taxa, meses - 1);
+}
+
+// --- IMPLEMENTAÇÃO DAS FUNÇÕES ---
+
+// Mantive o nome 'login', mas agora recebe os dados reais
 int login(Conta *contas, int total, int *outIdx) {
-    if (!contas || total <= 0) return 0;
-    // Ler e validar CPF
-    char cpfbuf[64];
-    char senhabuf[32];
-    while (1) {
+    char cpf_digitado[15];
+    char senha_digitada[20];
+    int tentativas = 3;
+
+    cabecalho("LOGIN DO CLIENTE"); // Do unir.c
+
+    while(tentativas > 0) {
         printf("Digite seu CPF: ");
-        if (fgets(cpfbuf, sizeof(cpfbuf), stdin) == NULL) return 0;
-        trimNewline(cpfbuf);
-        if (validarCPF(cpfbuf)) break;
-        printf("CPF invalido. Tente novamente.\n");
-    }
+        limparEntrada(); 
+        fgets(cpf_digitado, 15, stdin); trimNewline(cpf_digitado);
 
-    // Ler e validar senha (6 digitos numericos)
-    while (1) {
-        printf("Digite sua senha (6 digitos numericos): ");
-        if (fgets(senhabuf, sizeof(senhabuf), stdin) == NULL) return 0;
-        trimNewline(senhabuf);
-        if (senhaValidaNDigitos(senhabuf, 6)) break;
-        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
-    }
+        int idx = buscarIndicePorCPF(contas, total, cpf_digitado); // unir.c
 
-    // procurar conta correspondente
-    if (!contas || total <= 0) return 0;
-    for (int i = 0; i < total; i++) {
-        if (strcmp(contas[i].cpf, cpfbuf) == 0 && strcmp(contas[i].senha, senhabuf) == 0) {
-            if (outIdx) *outIdx = i;
-            return 1;
+        if (idx == -1) {
+            printf("CPF nao encontrado.\n");
+            tentativas--;
+            continue;
+        }
+
+        printf("Digite sua senha: ");
+        fgets(senha_digitada, 20, stdin); trimNewline(senha_digitada);
+
+        if (strcmp(contas[idx].senha, senha_digitada) == 0) {
+            printf("Login realizado com sucesso!\n");
+            *outIdx = idx;
+            return 1; // Sucesso
+        } else {
+            tentativas--;
+            printf("Senha incorreta. Tentativas restantes: %d\n", tentativas);
         }
     }
+    printf("Numero maximo de tentativas atingido.\n");
     return 0;
 }
 
-int tela_principal(Conta *contas, int total, int idx) {
-    if (!contas || idx < 0 || idx >= total) return 0;
+// Funções financeiras simples
+void deposito(Conta *c, double valor) {
+    if (valor <= 0) {
+        printf("Valor invalido.\n");
+        return;
+    }
+    c->saldo += (float)valor;
+    printf("+ R$ %.2f\n", valor);
+    registrarLog(c->id, "Deposito");
+}
+
+void saque(Conta *c, double valor) {
+    if (c->flags & FLAG_BLOQUEADA) {
+        printf("Conta bloqueada. Operacao nao permitida.\n");
+        return;
+    }
+    if (valor > c->saldo) {
+        printf("Saldo insuficiente.\n");
+        return;
+    }
+    c->saldo -= (float)valor;
+    printf("Saque de R$ %.2f realizado.\n", valor);
+    registrarLog(c->id, "Saque");
+}
+
+void transferencia_bancaria(Conta *contas, int total, int idx) {
     Conta *c = &contas[idx];
-    char agencia[128];
-    snprintf(agencia, sizeof(agencia), "%s - %s", NOME_BANCO, AGENCIA_PADRAO);
+    double valor;
+    int tipo;
+
+    printf("\n=== TRANSFERENCIA BANCARIA ===\n");
+    printf("Saldo disponivel: R$ %.2f\n", c->saldo);
+    printf("1 - PIX\n2 - Transferencia entre contas (TED)\nEscolha: ");
+    scanf("%d", &tipo); limparEntrada();
+
+    if (tipo == 1) { // PIX
+        // Lógica dos menus adaptada
+        int b;
+        printf("1 - Gerar chave aleatoria\n2 - Cadastro nova chave\n3 - Ver chaves\n4 - QR Code\n");
+        scanf("%d", &b);
+        switch(b) {
+            case 1: printf("Nova chave: %s-pix\n", c->cpf); break; // pix_aleatorio
+            case 2: printf("Chave cadastrada com sucesso.\n"); break; // pix_cadastro
+            case 3: printf("Chaves: CPF, Email.\n"); break; // pix_cadastrados
+            case 4: qr_code(); break; // Visual
+        }
+    } 
+    else if (tipo == 2) { // TED
+        if (c->flags & FLAG_BLOQUEADA) {
+            printf("Conta bloqueada!\n"); return;
+        }
+        int idDest;
+        printf("Numero da conta destino: ");
+        scanf("%d", &idDest);
+        int idxDest = buscarIndicePorId(contas, total, idDest); // unir.c
+
+        if (idxDest == -1) {
+            printf("Conta destino nao encontrada.\n");
+        } else {
+            printf("Valor a transferir: R$ ");
+            scanf("%lf", &valor);
+            if (valor > 0 && c->saldo >= valor) {
+                c->saldo -= valor;
+                contas[idxDest].saldo += valor;
+                printf("Transferencia realizada!\n");
+                registrarLog(c->id, "Transferencia TED");
+            } else {
+                printf("Saldo insuficiente ou valor invalido.\n");
+            }
+        }
+    }
+}
+
+// Mantendo o nome 'outras_opcoes' que ela usou para configurações
+void outras_opcoes(Conta *c) {
+    int opcao_principal = 0;
+
+    printf("\n=== OUTRAS OPCOES ===\n");
+    printf("1 - Planos de Seguranca (Contratos)\n");
+    printf("2 - Configuracoes do Sistema (Bitwise)\n");
+    printf("3 - Simulacao Rendimento (Recursao)\n");
+    printf("0 - Voltar\n");
+    printf("Escolha: ");
+    scanf("%d", &opcao_principal);
+
+    switch(opcao_principal) {
+        case 1: { // CONTRATOS
+            int plano;
+            printf("1. Protecao Fraudes\n2. Limite Horario\n3. Confirmacao Senha\n");
+            scanf("%d", &plano);
+            if(plano==1) { plano_protecaoCONTRATO(); pausarTela(); plano_protecaoCOMPROVANTE(); }
+            if(plano==2) { plano_Limitehorarioparatransacoes(); pausarTela(); plano_Limitehorarioparatransacoescomprovante(); }
+            if(plano==3) { plano_ConfirmacaoporsenhaparavaloresaltosCONTRATO(); pausarTela(); plano_ConfirmacaoporsenhaparavaloresaltosCOMPROVANTE(); }
+            break;
+        }
+        case 2: { // BITWISE (Corrigido para usar c->flags)
+            printf("\n=== CONFIGURACOES (BITWISE) ===\n");
+            printf("Flags Atuais: 0x%02X\n", c->flags);
+            printf("1 - Notificacoes: %s\n", verificar_configuracao(c->flags, NOTIFICACOES_ATIVAS) ? "ON" : "OFF");
+            printf("2 - Transacoes Noturnas: %s\n", verificar_configuracao(c->flags, TRANSACOES_NOTURNAS) ? "ON" : "OFF");
+            
+            printf("Alterar: 1-Notificacoes 2-Noturnas: ");
+            int op; scanf("%d", &op);
+            if (op == 1) {
+                if (verificar_configuracao(c->flags, NOTIFICACOES_ATIVAS)) desativar_configuracao(&c->flags, NOTIFICACOES_ATIVAS);
+                else ativar_configuracao(&c->flags, NOTIFICACOES_ATIVAS);
+            }
+            if (op == 2) {
+                if (verificar_configuracao(c->flags, TRANSACOES_NOTURNAS)) desativar_configuracao(&c->flags, TRANSACOES_NOTURNAS);
+                else ativar_configuracao(&c->flags, TRANSACOES_NOTURNAS);
+            }
+            break;
+        }
+        case 3: { // RECURSÃO (Adaptada)
+            int m;
+            printf("Meses para simular (1%% a.m): ");
+            scanf("%d", &m);
+            double res = deposito_recursivo_simulado(c->saldo, 0.01, m);
+            printf("Resultado: R$ %.2f\n", res);
+            break;
+        }
+    }
+    pausarTela();
+}
+
+// Mantive o nome 'tela_principal', mas removi o malloc errado de agencia
+int tela_principal(Conta *contas, int total, int idx) {
+    Conta *c = &contas[idx];
+    int opc = 0;
+
+    // String fixa ou define, sem malloc desnecessario
+    char agencia[] = "001 - AGENCIA DO CENTRO"; 
 
     while (1) {
+        limparTela();
+        // Cabeçalho igual ao dela
         printf("\nAGENCIA: %s\t  SALDO: %.2f\t  CPF: %s\n\n", agencia, c->saldo, c->cpf);
-        printf("1. Consultar Saldo e Status\n");
-        printf("2. Depositar\n");
-        printf("3. Sacar (Com validacao de Saldo + Status Ativo)\n");
-        printf("4. Transferencia entre Contas (Usa busca em vetor)\n");
-        printf("5. Simulacao de Rendimento (Usa Recursividade)\n");
-        printf("6. Bloquear/Desbloquear Cartao (Usa Bitwise)\n");
-        printf("7. Alterar Senha (Usa manipulacao de strings do unir.h)\n");
-        printf("0. Sair\n");
+        printf("1 - EXTRATO\n2 - DEPOSITO\n3 - SAQUE\n4 - TRANSFERENCIA\n5 - OUTRAS OPCOES\n0 - SAIR\n");
         printf("Escolha: ");
+        
         char opcbuf[16];
         if (fgets(opcbuf, sizeof(opcbuf), stdin) == NULL) break;
-        trimNewline(opcbuf);
-        char *endptr_opc = NULL;
-        long lopc = strtol(opcbuf, &endptr_opc, 10);
-        int opc;
-        if (endptr_opc == opcbuf || *endptr_opc != '\0') { printf("Opcao invalida.\n"); continue; }
-        opc = (int)lopc;
+        opc = atoi(opcbuf);
+
         if (opc == 0) break;
         else if (opc == 1) {
-            // Consultar saldo e status
-            printf("Extrato - Conta %d | Nome: %s | CPF: %s | Saldo: R$ %.2f\n", c->id, c->nome, c->cpf, c->saldo);
-            printf("Status:");
-            if (c->flags & FLAG_BLOQUEADA) printf(" Bloqueado"); else printf(" Ativo");
-            if (c->flags & FLAG_PREMIUM) printf(" | Premium");
-            if (c->flags & FLAG_EMAIL_VERIFIED) printf(" | Email Verificado");
-            printf("\n");
-        } else if (opc == 2) {
-            // Depositar
-            printf("Valor a depositar: ");
-            char vbuf[64]; if (fgets(vbuf, sizeof(vbuf), stdin) == NULL) continue;
-            double v = atof(vbuf);
-            if (v <= 0) { printf("Valor invalido.\n"); continue; }
-            clienteDepositar(c, v);
-            printf("Deposito efetuado. Saldo atual: R$ %.2f\n", c->saldo);
-        } else if (opc == 3) {
-            // Sacar (valida saldo e status)
-            if (c->flags & FLAG_BLOQUEADA) { printf("Conta/cartao bloqueado. Operacao nao permitida.\n"); continue; }
-            printf("Valor a sacar: ");
-            char vbuf[64]; if (fgets(vbuf, sizeof(vbuf), stdin) == NULL) continue;
-            double v = atof(vbuf);
-            if (v <= 0) { printf("Valor invalido.\n"); continue; }
-            if (c->saldo < (float)v) { printf("Saldo insuficiente.\n"); continue; }
-            if (clienteSacar(c, v)) {
-                printf("Saque realizado. Saldo atual: R$ %.2f\n", c->saldo);
-            } else {
-                printf("Saque falhou.\n");
-            }
-        } else if (opc == 4) {
-            // Transferência entre contas
-            if (c->flags & FLAG_BLOQUEADA) { printf("Conta/cartao bloqueado. Operacao nao permitida.\n"); continue; }
-            printf("Numero da conta destino: ");
-            char idbuf[32]; if (fgets(idbuf, sizeof(idbuf), stdin) == NULL) continue;
-            trimNewline(idbuf);
-            char *endptr_id = NULL; long ldest = strtol(idbuf, &endptr_id, 10);
-            if (endptr_id == idbuf || *endptr_id != '\0') { printf("Conta destino invalida.\n"); continue; }
-            int destId = (int)ldest;
-            int destIdx = -1;
-            for (int i = 0; i < total; i++) if (contas[i].id == destId) { destIdx = i; break; }
-            if (destIdx < 0) { printf("Conta destino nao encontrada.\n"); continue; }
-            printf("Valor a transferir: "); char vbuf2[64]; if (fgets(vbuf2, sizeof(vbuf2), stdin) == NULL) continue;
-            trimNewline(vbuf2);
-            char *endptr_v2 = NULL; double v = strtod(vbuf2, &endptr_v2);
-            if (endptr_v2 == vbuf2 || *endptr_v2 != '\0') { printf("Valor invalido.\n"); continue; }
-            if (v <= 0) { printf("Valor invalido.\n"); continue; }
-            if (clienteTransferir(contas, total, idx, destIdx, v)) {
-                printf("Transferencia realizada. Saldo atual: R$ %.2f\n", c->saldo);
-            } else {
-                printf("Falha na transferencia.\n");
-            }
-        } else if (opc == 5) {
-            // Simulação de rendimento
-            printf("Taxa mensal (ex: 0.01 = 1%%): "); char tbuf[32]; if (fgets(tbuf, sizeof(tbuf), stdin) == NULL) continue;
-            trimNewline(tbuf);
-            char *endptr_taxa = NULL; double taxa = strtod(tbuf, &endptr_taxa);
-            if (endptr_taxa == tbuf || *endptr_taxa != '\0') { printf("Taxa invalida.\n"); continue; }
-            printf("Meses: "); char mbuf[16]; if (fgets(mbuf, sizeof(mbuf), stdin) == NULL) continue;
-            trimNewline(mbuf);
-            char *endptr_m = NULL; long lmeses = strtol(mbuf, &endptr_m, 10);
-            if (endptr_m == mbuf || *endptr_m != '\0') { printf("Meses invalidos.\n"); continue; }
-            int meses = (int)lmeses;
-            double futuro = simularRendimentoRecursivo(c->saldo, taxa, meses);
-            printf("Saldo atual: R$ %.2f -> apos %d meses (taxa %.4f): R$ %.2f\n", c->saldo, meses, taxa, futuro);
-        } else if (opc == 6) {
-            // Bloquear/Desbloquear cartão (bitwise)
-            if (clienteToggleBloqueio(c)) {
-                if (c->flags & FLAG_BLOQUEADA) printf("Conta/cartao agora BLOQUEADO.\n"); else printf("Conta/cartao agora DESBLOQUEADO.\n");
-            } else {
-                printf("Operacao de bloqueio falhou.\n");
-            }
-        } else if (opc == 7) {
-            // Alterar senha
-            printf("Digite sua senha atual: ");
-            char cur[32]; if (fgets(cur, sizeof(cur), stdin) == NULL) continue; trimNewline(cur);
-            if (strcmp(cur, c->senha) != 0) { printf("Senha atual incorreta.\n"); continue; }
-            if (clienteAlterarSenha(c)) {
-                printf("Senha alterada com sucesso.\n");
-            } else {
-                printf("Falha ao alterar senha.\n");
-            }
-        } else {
+            printf("Extrato - Conta %d | Nome: %s\nSaldo: R$ %.2f\n", c->id, c->nome, c->saldo);
+            pausarTela();
+        } 
+        else if (opc == 2) {
+            printf("1-Dinheiro 2-Boleto: ");
+            int t; scanf("%d", &t); limparEntrada();
+            if(t==2) boleto();
+            
+            double v;
+            printf("Valor: ");
+            scanf("%lf", &v); limparEntrada();
+            deposito(c, v); 
+            pausarTela();
+        } 
+        else if (opc == 3) {
+            double v;
+            printf("Valor: ");
+            scanf("%lf", &v); limparEntrada();
+            saque(c, v);
+            pausarTela();
+        } 
+        else if (opc == 4) {
+            transferencia_bancaria(contas, total, idx);
+            pausarTela();
+        } 
+        else if (opc == 5) {
+            outras_opcoes(c);
+        } 
+        else {
             printf("Opcao invalida.\n");
         }
     }
-
     return 0;
 }
 
-// Legacy PIX / boleto / extrato / opcoes removed — client now uses Conta-based APIs
-
-// Operacoes sobre Conta
-int clienteDepositar(Conta *c, double valor) {
-    if (!c || valor <= 0.0) return 0;
-    c->saldo += (float)valor;
-    return 1;
-}
-
-int clienteSacar(Conta *c, double valor) {
-    if (!c || valor <= 0.0) return 0;
-    if (c->saldo < (float)valor) return 0;
-    c->saldo -= (float)valor;
-    return 1;
-}
-
-int clienteTransferir(Conta *contas, int total, int fromIdx, int toIdx, double valor) {
-    if (!contas || fromIdx < 0 || toIdx < 0 || fromIdx >= total || toIdx >= total) return 0;
-    Conta *from = &contas[fromIdx];
-    Conta *to = &contas[toIdx];
-    if (from->flags & FLAG_BLOQUEADA) return 0;
-    if (to->flags & FLAG_BLOQUEADA) return 0;
-    if (valor <= 0.0 || from->saldo < (float)valor) return 0;
-    from->saldo -= (float)valor;
-    to->saldo += (float)valor;
-    return 1;
-}
-
-double simularRendimentoRecursivo(double saldo, double taxa, int meses) {
-    if (meses <= 0) return saldo;
-    double novo = saldo + saldo * taxa;
-    return simularRendimentoRecursivo(novo, taxa, meses - 1);
-}
-
-int clienteBloquearConta(Conta *c) {
-    if (!c) return 0;
-    c->flags |= FLAG_BLOQUEADA;
-    return 1;
-}
-
-int clienteToggleBloqueio(Conta *c) {
-    if (!c) return 0;
-    if (c->flags & FLAG_BLOQUEADA) {
-        c->flags &= (unsigned char)(~FLAG_BLOQUEADA);
-    } else {
-        c->flags |= FLAG_BLOQUEADA;
-    }
-    return 1;
-}
-
-int clienteAlterarSenha(Conta *c) {
-    if (!c) return 0;
-    // senha atual validated by caller (menu) — prompt for new senha
-    char nova[32];
-    printf("Digite a nova senha (6 digitos numericos): ");
-    if (fgets(nova, sizeof(nova), stdin) == NULL) return 0;
-    trimNewline(nova);
-    if (!senhaValidaNDigitos(nova, 6)) {
-        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
-        return 0;
-    }
-    // copy to account
-    strncpy(c->senha, nova, sizeof(c->senha));
-    c->senha[sizeof(c->senha)-1] = '\0';
-    return 1;
-}
-
-// Menu do cliente: login / criar conta (sem variáveis globais)
+// Ponto de entrada (chamado pela main)
 void clienteMenu(Conta **contas, int *total, int *capacidade) {
-    if (!contas || !total || !capacidade) return;
-    while (1) {
-        printf("\n--- Menu Cliente - %s (%s) ---\n", NOME_BANCO, AGENCIA_PADRAO);
-        printf("1. Login\n2. Criar conta\n0. Voltar\n");
+    int opc = 0;
+    while(1) {
+        limparTela();
+        printf("\n--- %s ---\n", NOME_BANCO);
+        printf("1. Login\n2. Criar Conta\n0. Voltar\n");
         printf("Escolha: ");
-        char buf[16]; if (fgets(buf, sizeof(buf), stdin) == NULL) break;
-        int opc = atoi(buf);
+        scanf("%d", &opc); limparEntrada();
+
         if (opc == 0) break;
-        else if (opc == 1) {
+        if (opc == 1) {
             int idx = -1;
-            if (*contas == NULL || *total <= 0) {
-                printf("Nenhuma conta cadastrada. Crie uma conta primeiro.\n");
-            } else if (login(*contas, *total, &idx)) {
+            if (login(*contas, *total, &idx)) {
                 tela_principal(*contas, *total, idx);
-            } else {
-                printf("Login falhou. CPF ou senha invalidos.\n");
             }
-        } else if (opc == 2) {
-            clienteCriarConta(contas, total, capacidade);
-        } else {
-            printf("Opcao invalida.\n");
+        }
+        if (opc == 2) {
+            clienteCriarConta(contas, total, capacidade); // Criar Conta
+            pausarTela();
         }
     }
 }
 
+// --- FUNÇÃO DE CRIAR CONTA ---
 void clienteCriarConta(Conta **contas, int *total, int *capacidade) {
-    if (!contas || !total || !capacidade) return;
-    if (*capacidade < 1) *capacidade = 2;
-    if (*contas == NULL) {
-        *contas = (Conta *)malloc((size_t)(*capacidade) * sizeof(Conta));
-        if (!*contas) { *capacidade = 0; return; }
-    }
-    if (*total + 1 > *capacidade) {
-        int nova = (*capacidade) * 2;
-        Conta *tmp = (Conta *)realloc(*contas, (size_t)nova * sizeof(Conta));
-        if (!tmp) return;
-        *contas = tmp;
-        *capacidade = nova;
+    if (*total >= *capacidade) {
+        *capacidade = (*capacidade == 0) ? 2 : (*capacidade * 2);
+        *contas = (Conta *)realloc(*contas, *capacidade * sizeof(Conta));
     }
 
     Conta *c = &(*contas)[*total];
-    // Ler nome
+    c->id = gerarProximoId(*contas, *total); // unir.c
+
     printf("Nome: ");
-    if (fgets(c->nome, sizeof(c->nome), stdin) == NULL) return;
-    trimNewline(c->nome);
-    // Ler CPF
-    while (1) {
-        printf("CPF: ");
-        if (fgets(c->cpf, sizeof(c->cpf), stdin) == NULL) return;
-        trimNewline(c->cpf);
-        if (validarCPF(c->cpf)) break;
-        printf("CPF invalido. Tente novamente.\n");
-    }
-    // Ler senha
-    while (1) {
-        printf("Senha (6 digitos numericos): ");
-        char senhabuf[32]; if (fgets(senhabuf, sizeof(senhabuf), stdin) == NULL) return;
-        trimNewline(senhabuf);
-        if (senhaValidaNDigitos(senhabuf, 6)) { strncpy(c->senha, senhabuf, sizeof(c->senha)); c->senha[sizeof(c->senha)-1]='\0'; break; }
-        printf("Senha invalida. Deve conter exatamente 6 digitos numericos.\n");
-    }
-    c->saldo = 0.0f;
+    fgets(c->nome, 50, stdin); trimNewline(c->nome);
+
+    printf("CPF: ");
+    fgets(c->cpf, 15, stdin); trimNewline(c->cpf);
+
+    printf("Senha (6 digitos): ");
+    fgets(c->senha, 20, stdin); trimNewline(c->senha);
+
+    c->saldo = 0.0;
     c->flags = 0;
-    // Id gerado centralmente para manter consistência
-    c->id = gerarProximoId(*contas, *total);
     (*total)++;
-    printf("Conta criada com id %d\n", c->id);
+    
+    printf("Conta Criada! ID: %d\n", c->id);
+    registrarLog(c->id, "Conta Criada");
+}
+
+// --- FUNÇÕES VISUAIS ---
+
+void qr_code(void){
+    printf("\n");
+    printf("/////////////////////// QR CODE /////////////////////\n");
+    printf("|||| |||||||  |||||| ||         ||||  ||||||||| ||\n");
+    printf("||||                ||         ||||             ||\n");
+    printf("|||| |||||||  |||||| ||         ||||             ||\n");
+    printf("    ||    ||||||  |||          ||||  ||||||||| ||\n");
+    printf(" ||||||      ||||||||||||||            |||||||||||  ||\n");
+    printf("Escaneie com a camera do celular\n\n");
+}
+
+void boleto(void){
+    printf("\n");
+    printf("____________________________________________________\n");
+    printf("|    AGENCIA  DO CENTRO  |  00000002305402030900055|\n");
+    printf("_________________________|_______________|__________|\n");
+    printf("|    LOCAL DE PAGAMENTO  |  VENCIMENTO   | 10/12    |\n");
+    printf("|    C-BANK S.A.         |  VALOR        | R$ ???   |\n");
+    printf("____________________________________________________\n");
+}
+
+void plano_protecaoCONTRATO(){
+ printf("---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+printf("|                                                                                                                                                                                                             |");
+printf("| CLÁUSULA PRIMEIRA - DO OBJETO                                                                                                                                                                               |");
+printf("| O presente termo tem por objeto a contratação, pelo CLIENTE, do serviço de Proteção PIX oferecido pelo BANCO, que compreende um conjunto de medidas de segurança para transações via sistema PIX.             |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA SEGUNDA - DAS CARACTERÍSTICAS DO SERVIÇO                                                                                                                                                            |");
+printf("|O serviço de Proteção PIX inclui:                                                                                                                                                                            |");
+printf("|a) Limite horário para transações: operações bloqueadas das 22h às 6h                                                                                                                                        |");
+printf("|b) Confirmação adicional para valores superiores a R$ 1.000,00                                                                                                                                               |");
+printf("|c) Monitoramento de transações atípicas                                                                                                                                                                      |");
+printf("|d) Seguro contra fraudes comprovadas até o limite de R$ 10.000,00                                                                                                                                            |");
+printf("|e) Notificação imediata via SMS para todas as transações                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA TERCEIRA - DO PRAZO                                                                                                                                                                                 |");
+printf("|O serviço terá vigência por prazo indeterminado, podendo ser cancelado a qualquer tempo pelo CLIENTE, sem ônus.                                                                                              |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO CLIENTE                                                                                                                                                                  |");
+printf("|O CLIENTE se compromete a:                                                                                                                                                                                   |");
+printf("|a) Manter sigilo de suas credenciais de acesso                                                                                                                                                               |");
+printf("|b) Notificar o BANCO imediatamente em caso de perda ou roubo do dispositivo                                                                                                                                  |");
+printf("|c) Verificar regularmente o extrato de movimentações                                                                                                                                                         |");
+printf("|d) Utilizar senhas complexas e atualizá-las periodicamente                                                                                                                                                   |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA QUINTA - DA RESPONSABILIDADE                                                                                                                                                                        |");
+printf("|O BANCO se responsabiliza por indenizar prejuízos decorrentes de falhas comprovadas em seus sistemas, excluídas as situações de negligência do CLIENTE.                                                      |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA SEXTA - DO CANAL DE ATENDIMENTO                                                                                                                                                                     |");
+printf("|Para acionamento do serviço em caso de suspeita de fraude: 0800-000-0000, 24 horas.                                                                                                                          |");
+printf("|                                                                                                                                                                                                             |");
+printf("|CLÁUSULA SÉTIMA - DO ACEITE                                                                                                                                                                                  |");
+printf("|Ao confirmar ""SIM"" na adesão, o CLIENTE declara ter lido e concordado com todos os termos aqui estabelecidos.                                                                                              |");
+printf("|                                                                                                                                                                                                             |");
+printf("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                                                                                                                                                                                                             |");
+printf("|Local e Data: ______, ___ de ________ de 2025                                                                                                                                                                |");
+printf("|                                                                                                                                                                                                             |");
+printf("|Assinatura do Cliente: _________________________                                                                                                                                                             |");
+printf("|                                                                                                                                                                                                             |");
+printf("|Carimbo e Assinatura do Banco: _________________                                                                                                                                                             |");
+printf("|                                                                                                                                                                                                             |");
+printf("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                       Este termo integra o contrato de prestação de serviços bancários, regendo-se pela Lei nº 13.709/2018 (LGPD) e demais normas aplicáveis.                                                 |");
+printf("|                                                                                                                                                                                                             |");
+printf("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("\n");
+
+}
+
+
+void plano_protecaoCOMPROVANTE(){
+
+ printf("____________________________________________________________________________________________\n");
+    printf("|    AGENCIA  DO CENTRO  |  000000-01             |  00000002305402030900055J607500 - 01    |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    FORMA DE PAGAMENTO                             |                DATA DO DOCUMENTO      |\n");
+    printf("|                                                   |                                       |\n");
+    printf("|    DEBITO AUTOMATICO!                             |                28/11/2025             |\n");
+    printf("____________________________________________|_______________________________________________|\n");
+    printf("|    CEDENTE                                |      NOSSO NUMERO                             |\n");
+    printf("|                                           |      +557399999 - 9999                        |\n");
+    printf("|    USUARIO SILVA SANTOS                   |_______________________________________________|\n");
+    printf("|                                           |      VALOR DO DOCUMENTO                       |\n");
+    printf("|___________________________________________|      R$ 1.200,00                              |\n");
+    printf("|    INSTRUÇÕES                             |_______________________________________________|\n");
+    printf("|   O CODIGO DE BARRAS ABAIXO               |      DESCONTO\\ABATIMENTO                      |\n");
+    printf("|   PODE SER UTILIZADO COMO COMPROVANTE     |      R$ 00,00                                 |\n");
+    printf("|   DE PAGAMENTO,ACEITO EM QUALQUER         | _____________________________________________ |\n");
+    printf("|   INSTITUIÇÃO DO BANCO OU PARCERIA                                                        |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    SACADO                                                                                 |\n");
+    printf("|                                                                                           |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||  || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        5A   ÇJD54471R EVBUHUHHH 85 74 RYHE2GU   RNKJNENN 7846      054 0000000000000001     |\n");
+    printf("____________________________________________________________________________________________\n");
+}
+
+void plano_Limitehorarioparatransacoes(){
+
+printf("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA PRIMEIRA - DO OBJETO                                                                                                                                                                                        |");
+printf("|O presente termo disciplina a ativação do sistema de limite horário para transações financeiras                                                                                                                      |");
+printf("|realizadas pelo CLIENTE através dos canais PIX e Cartão de Crédito/Débito                                                                                                                                            |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA SEGUNDA - DAS CARACTERÍSTICAS DO SERVIÇO                                                                                                                                                                    |");
+printf("|Ficam estabelecidos os seguintes limites horários:                                                                                                                                                                   |");
+printf("|a) PERÍODO NOTURNO RESTRITO: Transações bloqueadas entre 23h e 5h                                                                                                                                                    |");
+printf("|b) PERÍODO DIURNO LIVRE: Transações permitidas entre 5h e 23h                                                                                                                                                        |");
+printf("|c) EXCEÇÕES: Serviços essenciais (hospitais, farmácias 24h) permanecem liberados mediante análise prévia                                                                                                             |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA TERCEIRA - DOS CANAIS AFETADOS                                                                                                                                                                              |");
+printf("|O limite horário aplica-se a:                                                                                                                                                                                        |");
+printf("|O limite horário aplica-se a:                                                                                                                                                                                        |");
+printf("|a) Todas as transações PIX (envio e recebimento)                                                                                                                                                                     |");
+printf("|b) Compras com cartão de débito e crédito                                                                                                                                                                            |");
+printf("|c) Saques em terminais eletrônicos                                                                                                                                                                                   |");
+printf("|d) Transferências entre contas                                                                                                                                                                                       |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO CLIENTE                                                                                                                                                                          |");
+printf("|O CLIENTE se compromete a:                                                                                                                                                                                           |");
+printf("|a) Manter sigilo de suas credenciais de acesso                                                                                                                                                                       |");
+printf("|b) Notificar o BANCO imediatamente em caso de perda ou roubo do dispositivo                                                                                                                                          |");
+printf("|c) Verificar regularmente o extrato de movimentações                                                                                                                                                                 |");
+printf("|d) Utilizar senhas complexas e atualizá-las periodicamente                                                                                                                                                           |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA QUINTA - DA RESPONSABILIDADE                                                                                                                                                                                |");
+printf("|O BANCO se responsabiliza por indenizar prejuízos decorrentes de falhas comprovadas em seus sistemas, excluídas as situações de negligência do CLIENTE.                                                              |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA SEXTA - DO CANAL DE ATENDIMENTO                                                                                                                                                                             |");
+printf("|Para acionamento do serviço em caso de suspeita de fraude: 0800-000-0000, 24 horas.                                                                                                                                  |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|CLÁUSULA SÉTIMA - DO ACEITE                                                                                                                                                                                          |");
+printf("|Ao confirmar ""SIM"" na adesão, o CLIENTE declara ter lido e concordado com todos os termos aqui estabelecidos.                                                                                                      |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                                                                                                                                                                                                                     |");
+printf("|Local e Data: ______, ___ de ________ de 2025                                                                                                                                                                        |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|Assinatura do Cliente: _________________________                                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|Carimbo e Assinatura do Banco: _________________                                                                                                                                                                     |");
+printf("|                                                                                                                                                                                                                     |");
+printf("|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                       Este termo integra o contrato de prestação de serviços bancários, regendo-se pela Lei nº 13.709/2018 (LGPD) e demais normas aplicáveis.                                                       |");
+printf("|                                                                                                                                                                                                                     |");
+printf("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");                                                                                                                                                                                                printf("|");
+puts("\n");
+
+}
+
+
+void plano_Limitehorarioparatransacoescomprovante(){
+
+ printf("____________________________________________________________________________________________\n");
+    printf("|    AGENCIA  DO CENTRO  |  000000-01             |  00000002305402030900055J607500 - 01    |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    FORMA DE PAGAMENTO                             |                DATA DO DOCUMENTO      |\n");
+    printf("|                                                   |                                       |\n");
+    printf("|    DEBITO AUTOMATICO!                             |                28/11/2025             |\n");
+    printf("____________________________________________|_______________________________________________|\n");
+    printf("|    CEDENTE                                |      NOSSO NUMERO                             |\n");
+    printf("|                                           |      +557399999 - 9999                        |\n");
+    printf("|    USUARIO SILVA SANTOS                   |_______________________________________________|\n");
+    printf("|                                           |      VALOR DO DOCUMENTO                       |\n");
+    printf("|___________________________________________|      R$ 2.400,00                              |\n");
+    printf("|    INSTRUÇÕES                             |_______________________________________________|\n");
+    printf("|   O CODIGO DE BARRAS ABAIXO               |      DESCONTO\\ABATIMENTO                      |\n");
+    printf("|   PODE SER UTILIZADO COMO COMPROVANTE     |      R$ 00,00                                 |\n");
+    printf("|   DE PAGAMENTO,ACEITO EM QUALQUER         | _____________________________________________ |\n");
+    printf("|   INSTITUIÇÃO DO BANCO OU PARCERIA                                                        |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    SACADO                                                                                 |\n");
+    printf("|                                                                                           |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||  || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        5A   ÇJD54471R EVBUHUHHH 85 74 RYHE2GU   RNKJNENN 7846      054 0000000000000001     |\n");
+    printf("____________________________________________________________________________________________\n");
+}
+
+void plano_ConfirmacaoporsenhaparavaloresaltosCONTRATO(){
+
+printf("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA PRIMEIRA - DO OBJETO                                                                                                                                                                                   |");
+printf("|O presente termo tem por objeto a contratação, pelo CLIENTE, do serviço de Confirmação por Senha para Valores Altos oferecido pelo BANCO.                                                                       |");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA SEGUNDA - DAS CARACTERÍSTICAS DO SERVIÇO                                                                                                                                                               |");
+printf("|O serviço de Confirmação por Senha para Valores Altos inclui:                                                                                                                                                   |");
+printf("|a) Confirmação obrigatória para transações PIX superiores a R$ 1.000,00                                                                                                                                         |");
+printf("|b) Autenticação adicional para transferências TED/DOC acima de R$ 2.000,00                                                                                                                                      |");
+printf("|c) Verificação por senha única para compras com cartão acima de R$ 500,00                                                                                                                                       |");
+printf("|d) Dupla validação para pagamentos de contas superiores a R$ 800,00                                                                                                                                             |");
+printf("|e) Notificação imediata via aplicativo para todas as transações de alto valor                                                                                                                                   |");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA TERCEIRA - DO PRAZO                                                                                                                                                                                    |");
+printf("|O serviço terá vigência por prazo indeterminado, podendo ser cancelado a qualquer tempo pelo CLIENTE, sem ônus.                                                                                                 |");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA QUARTA - DAS OBRIGAÇÕES DO CLIENTE                                                                                                                                                                     |");
+printf("|O CLIENTE se compromete a:                                                                                                                                                                                      |");
+printf("|a) Manter sigilo absoluto de suas senhas de confirmação                                                                                                                                                         |");
+printf("|b) Não compartilhar códigos de verificação com terceiros                                                                                                                                                        |");
+printf("|c) Notificar o BANCO imediatamente em caso de solicitação não autorizada                                                                                                                                        |");
+printf("|d) Utilizar senhas distintas das utilizadas para acesso habitual                                                                                                                                                |");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA QUINTA - DA RESPONSABILIDADE                                                                                                                                                                           |");
+printf("|O BANCO se responsabiliza por indenizar prejuízos decorrentes de falhas comprovadas em seus sistemas de confirmação, excluídas as situações de negligência do CLIENTE.                                          |");
+printf("|                                                                                                                                                                                                                |");
+printf("|CLÁUSULA SEXTA - DO CANAL DE ATENDIMENTO                                                                                                                                                                        |");
+printf("|Para desbloqueio emergencial ou reporte de problemas: 0800-000-0000, 24 horas.                                                                                                                                  |");
+printf("|                                                                                                                                                                                                                |");
+printf("|   CLÁUSULA SÉTIMA - DO ACEITE                                                                                                                                                                                  |");
+printf("|   Ao confirmar ""SIM"" na adesão, o CLIENTE declara ter lido e concordado com todos os termos aqui estabelecidos.                                                                                                |");
+printf("|                                                                                                                                                                                                                |");
+printf("|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                                                                                                                                                                                                                |");
+printf("|  Local e Data: ______, ___ de ________ de 2025                                                                                                                                                                 |");
+printf("|                                                                                                                                                                                                                |");
+printf("|  Assinatura do Cliente: _________________________                                                                                                                                                              |");
+printf("|                                                                                                                                                                                                                |");
+printf("| Carimbo e Assinatura do Banco: _________________                                                                                                                                                               |");
+printf("|                                                                                                                                                                                                                |");
+printf("|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+printf("|                      Este termo integra o contrato de prestação de serviços bancários, regendo-se pela Lei nº 13.709/2018 (LGPD) e demais normas aplicáveis.                                                   |");
+printf("|                                                                                                                                                                                                                |");
+printf("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|");
+
+}
+
+void plano_ConfirmacaoporsenhaparavaloresaltosCOMPROVANTE(){
+
+ printf("____________________________________________________________________________________________\n");
+    printf("|    AGENCIA  DO CENTRO  |  000000-01             |  00000002305402030900055J607500 - 01    |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    FORMA DE PAGAMENTO                             |                DATA DO DOCUMENTO      |\n");
+    printf("|                                                   |                                       |\n");
+    printf("|    DEBITO AUTOMATICO!                             |                28/11/2025             |\n");
+    printf("____________________________________________|_______________________________________________|\n");
+    printf("|    CEDENTE                                |      NOSSO NUMERO                             |\n");
+    printf("|                                           |      +557399999 - 9999                        |\n");
+    printf("|    USUARIO SILVA SANTOS                   |_______________________________________________|\n");
+    printf("|                                           |      VALOR DO DOCUMENTO                       |\n");
+    printf("|___________________________________________|      R$ 2.400,00                              |\n");
+    printf("|    INSTRUÇÕES                             |_______________________________________________|\n");
+    printf("|   O CODIGO DE BARRAS ABAIXO               |      DESCONTO\\ABATIMENTO                      |\n");
+    printf("|   PODE SER UTILIZADO COMO COMPROVANTE     |      R$ 00,00                                 |\n");
+    printf("|   DE PAGAMENTO,ACEITO EM QUALQUER         | _____________________________________________ |\n");
+    printf("|   INSTITUIÇÃO DO BANCO OU PARCERIA                                                        |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("|                                                                                           |\n");
+    printf("_________________________|_______________|__________________________________________________|\n");
+    printf("|    SACADO                                                                                 |\n");
+    printf("|                                                                                           |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||| || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        ||   ||||||   |||||||||  || || |||||||   |||||||| ||||     ||| |||||||||||||||     |\n");
+    printf("|        5A   ÇJD54471R EVBUHUHHH 85 74 RYHE2GU   RNKJNENN 7846      054 0000000000000001     |\n");
+    printf("____________________________________________________________________________________________\n");
 }

@@ -1,77 +1,87 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 #include "banco.h"
 #include "administrador.h"
 #include "cliente.h"
 #include "unir.h"
-#include <time.h>
 
+int main(void) {
+    // Configura acentos (opcional, depende do terminal)
+    setlocale(LC_ALL, ""); 
 
-// Vetor de contas e total (carregado no inicio)
     Conta *contas = NULL;
     int totalContas = 0;
     int capacidadeContas = 0;
+    int opcao = 0;
 
-int main(void) {
-    int opcao;
-
-    // carregar dados antes do menu
+    // --- PERSISTÊNCIA: CARREGAR DADOS ---
     if (carregarDados(&contas, &totalContas, "dados.bin")) {
+        // Se carregou, ajusta a capacidade para não quebrar o realloc futuro
         capacidadeContas = totalContas > 0 ? totalContas : 2;
-        printf("%d contas carregadas de dados.bin\n", totalContas);
+        printf("Sistema iniciou com %d contas carregadas.\n", totalContas);
     } else {
-        printf("Nenhum arquivo de dados encontrado ou vazio. Iniciando com 0 contas.\n");
-        capacidadeContas = 2;
+        printf("Base de dados vazia ou nova. Iniciando sistema...\n");
+        capacidadeContas = 2; // Começa pequeno
     }
+    
+    // Pequena pausa para ler a mensagem de carregamento
+    pausarTela(); 
 
+    // --- MENU PRINCIPAL ---
     do {
-        printf("\n===== %s =====\n", NOME_BANCO);
-        printf("Agencia: %s\n", AGENCIA_PADRAO);
-        printf("1. Acessar modulo do Administrador\n");
-        printf("2. Acessar modulo do Cliente\n");
-        printf("0. Sair\n");
-        printf("Escolha uma opcao: ");
-        {
-            char buf[64];
-            if (fgets(buf, sizeof(buf), stdin) == NULL) {
-                opcao = -1;
-            } else {
-                trimNewline(buf);
-                char *endptr = NULL;
-                long v = strtol(buf, &endptr, 10);
-                if (endptr == buf || *endptr != '\0') opcao = -1;
-                else opcao = (int)v;
-            }
+        // Usa nosso visual padronizado (unir.c)
+        cabecalho("SISTEMA PRINCIPAL");
+        
+        printf("1. Acesso Administrativo\n");
+        printf("2. Acesso Cliente (Caixa Eletronico)\n");
+        printf("0. Sair e Salvar\n");
+        printf("--------------------------------------------------\n");
+        printf("Escolha: ");
+        
+        // Sua leitura segura de input (Excelente!)
+        char buf[64];
+        if (fgets(buf, sizeof(buf), stdin) == NULL) {
+            opcao = -1;
+        } else {
+            trimNewline(buf); // Do unir.h
+            char *endptr = NULL;
+            long v = strtol(buf, &endptr, 10);
+            if (endptr == buf || *endptr != '\0') opcao = -1;
+            else opcao = (int)v;
         }
 
         switch (opcao) {
             case 1:
-                if (adminAutenticar()) adminMenu(&contas, &totalContas, &capacidadeContas);
+                // Só entra se acertar usuário/senha do admin
+                if (adminAutenticar()) {
+                    adminMenu(&contas, &totalContas, &capacidadeContas);
+                }
                 break;
-            case 2: {
-                // chama menu do cliente, passando o vetor de contas (sem variáveis globais)
+            case 2:
+                // Passa os ponteiros para o módulo cliente
                 clienteMenu(&contas, &totalContas, &capacidadeContas);
                 break;
-            }
             case 0:
-                printf("Encerrando o sistema...\n");
+                printf("\nEncerrando o sistema...\n");
                 break;
             default:
                 printf("Opcao invalida. Tente novamente.\n");
+                pausarTela();
         }
     } while (opcao != 0);
 
-    // salvar dados antes de encerrar
-    if (salvarDados(contas, totalContas, "dados.bin")) {
-        printf("Dados salvos em dados.bin (total=%d)\n", totalContas);
+    // --- PERSISTÊNCIA: SALVAR E SAIR ---
+    printf("Salvando dados em disco...\n");
+    if (salvarDados(contas, totalContas, "dados.bin")) { // Passa o nome do arquivo aqui ou define no banco.c
+        printf("Sucesso! %d contas salvas.\n", totalContas);
     } else {
-        printf("Erro ao salvar dados em dados.bin\n");
+        printf("ERRO CRITICO: Falha ao salvar dados!\n");
     }
 
-    free(contas);
+    // ---  LIMPEZA DE MEMÓRIA  ---
+    if (contas) free(contas);
+    
     return 0;
 }
-
-
-// (As funções de persistencia e gerenciamento de memoria foram movidas para banco.c)
