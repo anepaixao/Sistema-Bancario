@@ -1,9 +1,85 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "unir.h"
 #include "banco.h"
+
+// Leitura mascarada do CPF: mostra só o primeiro e último dígito, os demais como '*'
+void lerCPFmascarado(char *out, size_t size) {
+#ifdef _WIN32
+    char buf[32] = {0};
+    int len = 0;
+    printf("Digite seu CPF: ");
+    while (len < 11) {
+        int ch = _getch();
+        if (ch == 13 || ch == '\n') break;
+        if (ch == 8 && len > 0) { // backspace
+            len--; buf[len] = '\0';
+            printf("\b \b");
+            continue;
+        }
+        if (ch >= '0' && ch <= '9') {
+            buf[len++] = (char)ch;
+            if (len == 1) printf("%c", ch);
+            else if (len == 11) printf("%c", ch);
+            else printf("*");
+        }
+    }
+    buf[len] = '\0';
+    strncpy(out, buf, size-1); out[size-1] = '\0';
+    printf("\n");
+#else
+    // Fallback: leitura normal
+    fgets(out, (int)size, stdin); trimNewline(out);
+#endif
+}
+
+// Leitura mascarada da senha: mostra só asteriscos
+void lerSenhamascarada(char *out, size_t size) {
+#ifdef _WIN32
+    char buf[32] = {0};
+    int len = 0;
+    printf("Digite sua senha: ");
+    while (len < (int)size-1) {
+        int ch = _getch();
+        if (ch == 13 || ch == '\n') break;
+        if (ch == 8 && len > 0) { // backspace
+            len--; buf[len] = '\0';
+            printf("\b \b");
+            continue;
+        }
+        if (ch >= 32 && ch <= 126) {
+            buf[len++] = (char)ch;
+            printf("*");
+        }
+    }
+    buf[len] = '\0';
+    strncpy(out, buf, size-1); out[size-1] = '\0';
+    printf("\n");
+#else
+    // Fallback: leitura normal
+    fgets(out, (int)size, stdin); trimNewline(out);
+#endif
+}
+
+// Detecta se stdin é um terminal interativo
+#if defined(_WIN32) || defined(_WIN64)
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+
+static int stdin_is_tty(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    // On Windows, assume interactive in typical usage (avoids toolchain-specific fileno/_fileno issues)
+    return 1;
+#else
+    return isatty(fileno(stdin));
+#endif
+}
 
 // --- FUNÇÕES VISUAIS (TUI) ---
 
@@ -67,13 +143,18 @@ void limparTela(void) {
 }
 
 void pausarTela(void) {
+    // Se stdin não é um terminal (ex.: redirecionado), não pausar
+    if (!stdin_is_tty()) return;
     printf("\nPressione ENTER para continuar...");
-    // Consome buffer até achar enter ou fim
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF) {}
+    char buf[64];
+    if (fgets(buf, sizeof(buf), stdin) == NULL) {
+        clearerr(stdin);
+    }
 }
 
 void limparEntrada(void) {
+    // Se stdin não é um terminal, nada a limpar
+    if (!stdin_is_tty()) return;
     int c;
     while ((c = getchar()) != '\n' && c != EOF) {}
 }
@@ -148,4 +229,105 @@ int gerarProximoId(Conta *contas, int total) {
         if (contas[i].id > max) max = contas[i].id;
     }
     return max + 1;
+}
+
+// --- WRAPPERS DE LEITURA ---
+int lerLinha(const char *prompt, char *out, size_t size) {
+    if (prompt) printf("%s", prompt);
+    if (!out || size == 0) return 0;
+    if (fgets(out, size, stdin) == NULL) return 0;
+    trimNewline(out);
+    return 1;
+}
+
+int lerInteiro(const char *prompt, int *out) {
+    if (!out) return 0;
+    char buf[64];
+    if (prompt) printf("%s", prompt);
+    if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
+    trimNewline(buf);
+    char *endptr = NULL;
+    long v = strtol(buf, &endptr, 10);
+    if (endptr == buf || *endptr != '\0') return 0;
+    *out = (int)v;
+    return 1;
+}
+
+int lerDouble(const char *prompt, double *out) {
+    if (!out) return 0;
+    char buf[128];
+    if (prompt) printf("%s", prompt);
+    if (fgets(buf, sizeof(buf), stdin) == NULL) return 0;
+    trimNewline(buf);
+    char *endptr = NULL;
+    double v = strtod(buf, &endptr);
+    if (endptr == buf || *endptr != '\0') return 0;
+    *out = v;
+    return 1;
+}
+
+// --- TUI HELPERS IMPLEMENTATION ---
+void printSuccess(const char *fmt, ...) {
+    va_list ap;
+    printf("%s", COR_VERDE);
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+    printf("%s\n", COR_RESET);
+}
+
+void printError(const char *fmt, ...) {
+    va_list ap;
+    printf("%s", COR_VERMELHO);
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+    printf("%s\n", COR_RESET);
+}
+
+void printInfo(const char *fmt, ...) {
+    va_list ap;
+    printf("%s", COR_CIANO);
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+    printf("%s\n", COR_RESET);
+}
+
+void progressBar(int percent) {
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+    int width = 30;
+    int filled = (percent * width) / 100;
+    printf("[");
+    for (int i = 0; i < filled; ++i) printf("#");
+    for (int i = filled; i < width; ++i) printf("-");
+    printf("] %3d%%\r", percent);
+    fflush(stdout);
+    if (percent == 100) printf("\n");
+}
+
+void boxMessage(const char *title, const char *msg) {
+    int w = 60;
+    // top border
+    printf("%s+", COR_CIANO);
+    for (int i = 0; i < w; i++) printf("-");
+    printf("+%s\n", COR_RESET);
+    // title
+    printf("%s| %s%*s |%s\n", COR_CIANO, COR_AZUL, - (w-2), title, COR_RESET);
+    // separator
+    printf("%s|", COR_CIANO);
+    for (int i = 0; i < w; i++) printf("-");
+    printf("|%s\n", COR_RESET);
+    // message (wrap simple)
+    size_t len = strlen(msg);
+    for (size_t i = 0; i < len; i += (w - 2)) {
+        char buf[128] = {0};
+        strncpy(buf, msg + i, (size_t)(w - 2));
+        printf("%s| %s%*s |%s\n", COR_CIANO, COR_RESET, - (w-2), buf, COR_RESET);
+    }
+    // bottom border
+    printf("%s+", COR_CIANO);
+    for (int i = 0; i < w; i++) printf("-");
+    printf("+%s\n", COR_RESET);
 }

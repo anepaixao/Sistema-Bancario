@@ -17,9 +17,9 @@ int main(void) {
     int opcao = 0;
 
     // --- PERSISTÊNCIA: CARREGAR DADOS ---
-    if (carregarDados(&contas, &totalContas, "dados.bin")) {
-        // Se carregou, ajusta a capacidade para não quebrar o realloc futuro
-        capacidadeContas = totalContas > 0 ? totalContas : 2;
+    if (carregarDados(&contas, &totalContas, &capacidadeContas, "dados.bin")) {
+        // Se carregou, a capacidade já foi atualizada por carregarDados
+        if (capacidadeContas <= 0) capacidadeContas = totalContas > 0 ? totalContas : 2;
         printf("Sistema iniciou com %d contas carregadas.\n", totalContas);
     } else {
         printf("Base de dados vazia ou nova. Iniciando sistema...\n");

@@ -8,12 +8,6 @@
 #include "unir.h"
 
 // O main passa os ponteiros para as funções
-// Persistência/log já estão declaradas em banco.h
-
-// CPF validation and digit extraction moved to `unir.c` (see unir.h)
-
-// Nota: gerenciamento de capacidade foi movido para `banco.c` como `garantirCapacidade`.
-
 // Lista encadeada simples para índices de contas bloqueadas
 typedef struct NoBloq {
     int idx;
@@ -122,51 +116,39 @@ void adminCriarConta(Conta *contas, int *total) {
         break;
     }
 
-    // Ler e validar CPF
-    char buffer[64];
+    // Ler e validar CPF (mascarado)
+    char buffer[32];
     while (1) {
-        printf("CPF (somente numeros ou com pontuacao): ");
-        if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
-            printf("Erro de leitura do CPF.\n");
-            continue;
-        }
-        buffer[strcspn(buffer, "\n")] = '\0';
+        lerCPFmascarado(buffer, sizeof(buffer));
         if (validarCPF(buffer)) {
-            // armazenar (mantemos o formato digitado, truncando se necessário)
-            strncpy(contas[*total].cpf, buffer, sizeof(contas[*total].cpf)-1);
+            char dig[16];
+            apenasDigitos(buffer, dig);
+            strncpy(contas[*total].cpf, dig, sizeof(contas[*total].cpf)-1);
             contas[*total].cpf[sizeof(contas[*total].cpf)-1] = '\0';
             break;
         } else {
             printf("CPF invalido.\n");
         }
     }
-        // Ler e validar senha: exatamente 6 dígitos e confirmação
-        while (1) {
-            char senha1[16];
-            char senha2[16];
-
-            printf("Senha (6 digitos numericos): ");
-            if (fgets(senha1, sizeof(senha1), stdin) == NULL) { printf("Erro de leitura da senha.\n"); continue; }
-            trimNewline(senha1);
-            printf("Confirmar senha: ");
-            if (fgets(senha2, sizeof(senha2), stdin) == NULL) { printf("Erro na confirmacao da senha.\n"); continue; }
-            trimNewline(senha2);
-
-            // usar utilitario comum para validar n digitos
-            if (!senhaValidaNDigitos(senha1, 6) || !senhaValidaNDigitos(senha2, 6)) {
-                printf("Senha invalida: precisa ter exatamente 6 digitos numericos.\n");
-                continue;
-            }
-            if (strcmp(senha1, senha2) != 0) {
-                printf("Senhas diferentes.\n");
-                continue;
-            }
-
-            // armazenar na conta (termina com '\0')
-            strncpy(contas[*total].senha, senha1, sizeof(contas[*total].senha)-1);
-            contas[*total].senha[sizeof(contas[*total].senha)-1] = '\0';
-            break;
+    // Ler e validar senha: exatamente 6 dígitos e confirmação (mascarado)
+    while (1) {
+        char senha1[16];
+        char senha2[16];
+        lerSenhamascarada(senha1, sizeof(senha1));
+        printf("Confirmar senha: ");
+        lerSenhamascarada(senha2, sizeof(senha2));
+        if (!senhaValidaNDigitos(senha1, 6) || !senhaValidaNDigitos(senha2, 6)) {
+            printf("Senha invalida: precisa ter exatamente 6 digitos numericos.\n");
+            continue;
         }
+        if (strcmp(senha1, senha2) != 0) {
+            printf("Senhas diferentes.\n");
+            continue;
+        }
+        strncpy(contas[*total].senha, senha1, sizeof(contas[*total].senha)-1);
+        contas[*total].senha[sizeof(contas[*total].senha)-1] = '\0';
+        break;
+    }
 
     contas[*total].saldo = 0.0f;
     contas[*total].flags = 0; // inicializa flags (nenhuma flag ativa)
@@ -302,19 +284,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
         printf("11 - Mostrar flags de uma conta\n");
         printf("12 - Remover conta\n");
         printf("0 - Voltar\n");
-        printf("Escolha: ");
-        {
-            char buf[64];
-            if (fgets(buf, sizeof(buf), stdin) == NULL) {
-                opcao = -1;
-            } else {
-                trimNewline(buf);
-                char *endptr = NULL;
-                long v = strtol(buf, &endptr, 10);
-                if (endptr == buf || *endptr != '\0') opcao = -1;
-                else opcao = (int)v;
-            }
-        }
+        if (!lerInteiro("Escolha: ", &opcao)) opcao = -1;
 
         switch (opcao) {
             case 1:
@@ -351,8 +321,8 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
             }
             case 9: {
                 const char *fn = "contas.dat";
-                if (carregarDados(contas, total, fn)) {
-                    // ajustar capacidade para pelo menos total
+                if (carregarDados(contas, total, capacidade, fn)) {
+                    // ajustar capacidade para pelo menos total (carregarDados já atualiza capacidade)
                     if (*capacidade < *total) *capacidade = *total;
                     printf("Contas carregadas de %s (total=%d)\n", fn, *total);
                 } else printf("Erro ao carregar contas ou arquivo inexistente.\n");
@@ -360,16 +330,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
             }
             case 10: {
                 int numero;
-                printf("Numero da conta: ");
-                {
-                    char buf[64];
-                    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); break; }
-                    trimNewline(buf);
-                    char *endptr = NULL;
-                    long v = strtol(buf, &endptr, 10);
-                    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); break; }
-                    numero = (int)v;
-                }
+                if (!lerInteiro("Numero da conta: ", &numero)) { printf("Entrada invalida.\n"); break; }
                 for (int i = 0; i < *total; i++) {
                     if ((*contas)[i].id == numero) {
                         (*contas)[i].flags ^= FLAG_PREMIUM; // toggle
@@ -381,16 +342,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
             }
             case 11: {
                 int numero;
-                printf("Numero da conta: ");
-                {
-                    char buf[64];
-                    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); break; }
-                    trimNewline(buf);
-                    char *endptr = NULL;
-                    long v = strtol(buf, &endptr, 10);
-                    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); break; }
-                    numero = (int)v;
-                }
+                if (!lerInteiro("Numero da conta: ", &numero)) { printf("Entrada invalida.\n"); break; }
                 for (int i = 0; i < *total; i++) {
                     if ((*contas)[i].id == numero) {
                         printf("Conta %d - FLAG_PREMIUM=%s, FLAG_EMAIL_VERIFIED=%s\n",
@@ -423,14 +375,11 @@ void adminRemoverConta(Conta **contas, int *total) {
         return;
     }
     printf("\nRemover Conta\n");
-    printf("Numero da conta: ");
-    char buf[64];
-    if (fgets(buf, sizeof(buf), stdin) == NULL) { printf("Entrada invalida.\n"); return; }
-    trimNewline(buf);
-    char *endptr = NULL;
-    long v = strtol(buf, &endptr, 10);
-    if (endptr == buf || *endptr != '\0') { printf("Entrada invalida.\n"); return; }
-    int numero = (int)v;
+    int numero;
+    if (!lerInteiro("Numero da conta: ", &numero)) {
+        printf("Entrada invalida.\n");
+        return;
+    }
 
     int idx = -1;
     for (int i = 0; i < *total; i++) {
