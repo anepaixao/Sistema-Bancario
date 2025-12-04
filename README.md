@@ -202,8 +202,3 @@ cd .\Trabalho_final
 ## 📄 Licença
 
 Consulte o arquivo `LICENSE` na raiz do repositório.
-
-## ⚙️ Como compilar
-```bash
-gcc main.c administrador.c cliente.c banco.c unir.c -o banco.exe
-./banco.exe
