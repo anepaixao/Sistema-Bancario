@@ -106,14 +106,15 @@ Você pode compilar pelo VS Code (Task pronta) ou manualmente no PowerShell.
 2) Compilação manual (PowerShell, dentro de `Trabalho_final`)
 
 ```powershell
-gcc -Wall -Wextra -std=c11 main.c administrador.c cliente.c unir.c banco.c -I . -o output\banco.exe
+gcc main.c administrador.c cliente.c banco.c unir.c -o banco.exe
+./banco.exe
 ```
 
 3) Executar
 
 ```powershell
 cd .\Trabalho_final
-.\output\banco.exe
+.\banco.exe
 ```
 
 Observações
@@ -195,15 +196,6 @@ cd .\Trabalho_final
 
 - Credenciais do administrador são fixas (apenas para fins acadêmicos). Não use isso em produção.
 - O arquivo `dados.bin` não é criptografado; o foco é didático, não segurança real.
-
----
-
-## 🚀 Próximos Passos (Sugestões)
-
-- Criptografia/Hash de senhas (ex.: SHA-256) e política de senha forte.
-- Transações PIX reais no fluxo por chave (dados de favorecido/descrição).
-- Exportação de extrato (CSV/HTML) e relatórios com filtros.
-- Testes automatizados com entradas variadas e validação de saídas.
 
 ---
 
