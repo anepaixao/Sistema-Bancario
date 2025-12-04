@@ -1,7 +1,0 @@
-[2025-11-28 17:25:23] Conta 1001: Conta Criada
-[2025-11-29 13:28:37] Conta 1001: Conta Criada
-[2025-11-29 14:15:41] Conta 1002: Conta Criada
-[2025-12-01 16:03:41] Conta 1003: Conta Criada
-[2025-12-01 16:04:52] Conta 1003: Deposito
-[2025-12-01 16:13:20] Conta 1003: Deposito
-[2025-12-01 16:23:57] Conta 1003: Conta Criada

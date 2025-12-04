@@ -3,7 +3,7 @@
 
 #include "banco.h"
 
-// Protótipos das funções do módulo Administrador
+// Módulo do Administrador — deixei aqui os pontos de entrada que uso na main
 int adminAutenticar(void);
 void adminMenu(Conta **contas, int *total, int *capacidade);
 void adminCriarConta(Conta *contas, int *total);

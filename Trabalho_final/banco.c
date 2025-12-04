@@ -4,7 +4,7 @@
 #include <time.h>
 #include "banco.h"
 
-// Gerencia a capacidade do vetor de contas (Usado por cliente.c e administrador.c)
+// Aqui eu gerencio a capacidade do vetor de contas (cliente/admin usam isso)
 int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
     if (necessario <= *refCapacidade) return 1;
     int nova = *refCapacidade;
@@ -19,7 +19,7 @@ int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
     return 1;
 }
 
-// Persistência: salvar em arquivo binário
+// Persistência: aqui eu salvo os dados em um arquivo binário
 int salvarDados(const Conta *contas, int total, const char *arquivo) {
     if (!arquivo) return 0;
     FILE *f = fopen(arquivo, "wb");
@@ -39,7 +39,7 @@ int salvarDados(const Conta *contas, int total, const char *arquivo) {
     return 1;
 }
 
-// Carregar do arquivo binário
+// Carregamento: aqui eu leio do binário e reconstruo o vetor em memória
 int carregarDados(Conta **outContas, int *outTotal, int *outCapacidade, const char *arquivo) {
     if (!outContas || !outTotal || !arquivo) return 0;
     
@@ -84,7 +84,7 @@ int carregarDados(Conta **outContas, int *outTotal, int *outCapacidade, const ch
     return 1;
 }
 
-// Registrar log em arquivo texto (append)
+// Registro de log: anoto operações com data/hora em um .txt (append)
 void registrarLog(int idConta, const char *descricao) {
     if (!descricao) return;
     FILE *f = fopen("log.txt", "a");
@@ -93,7 +93,7 @@ void registrarLog(int idConta, const char *descricao) {
     time_t t = time(NULL);
     struct tm tmv;
     
-    // Tratamento cross-platform para hora segura
+    // Optei por um tratamento de hora cross-platform (Windows/Linux)
     #if defined(_MSC_VER)
         localtime_s(&tmv, &t);
     #else
