@@ -9,16 +9,18 @@
                 "-Wall",
                 "-Wextra",
                 "-std=c11",
-                "${workspaceFolder}/Trabalho final/main.c",
-                "${workspaceFolder}/Trabalho final/administrador.c",
-                "${workspaceFolder}/Trabalho final/cliente.c",
+                "${workspaceFolder}/Trabalho_final/main.c",
+                "${workspaceFolder}/Trabalho_final/administrador.c",
+                "${workspaceFolder}/Trabalho_final/cliente.c",
+                "${workspaceFolder}/Trabalho_final/unir.c",
+                "${workspaceFolder}/Trabalho_final/banco.c",
                 "-I",
-                "${workspaceFolder}/Trabalho final",
+                "${workspaceFolder}/Trabalho_final",
                 "-o",
-                "${workspaceFolder}/Trabalho final/output/banco.exe"
+                "${workspaceFolder}/Trabalho_final/output/banco.exe"
             ],
             "options": {
-                "cwd": "${workspaceFolder}/Trabalho final"
+                "cwd": "${workspaceFolder}/Trabalho_final"
             },
             "group": {
                 "kind": "build",

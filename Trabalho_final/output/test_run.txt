@@ -1,0 +1,8 @@
+﻿Sistema iniciou com 5 contas carregadas.
+
+Pressione ENTER para continuar...[1;32m   ______      ____              _    
+  / ____/     / __ )____ _____  | | __
+ / /   ______/ __  / __ `/ __ \ | |/ /
+/ /___/_____/ /_/ / /_/ / / / / |   < 
+\____/     /_____/\__,_/_/ /_/  |_|\_\
+[0m  Compilando o seu futuro.
