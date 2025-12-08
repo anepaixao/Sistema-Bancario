@@ -1,12 +1,12 @@
 #ifndef BANCO_H
 #define BANCO_H
 
-// Identidade do banco que uso nas telas e mensagens
+// Identidade do banco utilizada nas telas e mensagens
 #define NOME_BANCO   "C-Bank"
 #define SLOGAN_BANCO "Compilando o seu futuro."
 #define AGENCIA_PADRAO "0001-C"
 
-// Estrutura central da conta que defini para o sistema
+// Estrutura central da conta definida para o sistema
 typedef struct {
     int id;
     char nome[50];
@@ -16,23 +16,22 @@ typedef struct {
     unsigned char flags; // Bitwise (1 byte)
 } Conta;
 
-// Flags de status que manipulo com bitwise (bloqueio, premium, etc.)
+// Flags de status manipuladas com bitwise (bloqueio e premium)
 #define FLAG_BLOQUEADA      (1u << 0) // 0000 0001
 #define FLAG_PREMIUM        (1u << 1) // 0000 0010
-#define FLAG_EMAIL_VERIFIED (1u << 2) // 0000 0100
 
-// Protótipos das rotinas de persistência que implementei em banco.c
+// Protótipos das rotinas de persistência implementadas em banco.c
 
-// Aqui eu salvo todas as contas no disco (binário)
+// Salva todas as contas no disco (binário)
 int salvarDados(const Conta *contas, int total, const char *arquivo);
 
-// E aqui eu carrego as contas do disco para a memória
+// Carrega as contas do disco para a memória
 int carregarDados(Conta **contas, int *total, int *outCapacidade, const char *arquivo);
 
 // Log simples para auditoria das operações
 void registrarLog(int idConta, const char *descricao);
 
-// Gestão de capacidade do vetor (uso em admin/cliente para crescer com segurança)
+// Gestão de capacidade do vetor (usado em admin/cliente para crescer com segurança)
 int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario);
 
 #endif
