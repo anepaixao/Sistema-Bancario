@@ -6,8 +6,7 @@
 #include "banco.h"
 #include "unir.h"
 
-// Deixei os protótipos das telas/visuais aqui em cima
-// só para manter a organização do arquivo
+// Protótipos das telas/visuais agrupados para organização
 // --- PROTÓTIPOS DAS FUNÇÕES VISUAIS ---
 void boleto(void);
 void qr_code(void);
@@ -20,9 +19,9 @@ void plano_ConfirmacaoporsenhaparavaloresaltosCOMPROVANTE(void);
 
 // --- FUNÇÕES AUXILIARES ---
 
-// Corrigi erro de escopo e concentrei as flags aqui
-// Optei por usar bitwise para guardar várias configurações
-// em um único byte (economiza memória e fica rápido de checar)
+// Flags de configuração concentradas nesta seção
+// Uso de bitwise para armazenar múltiplas opções em um único byte
+// (economia de memória e verificação eficiente)
 #define NOTIFICACOES_ATIVAS (1u << 4)
 #define TRANSACOES_NOTURNAS (1u << 5)
 #define CONFIRMACAO_VALORES (1u << 6)
@@ -40,17 +39,16 @@ int verificar_configuracao(unsigned char config, unsigned char flag) {
     return (config & flag) != 0;
 }
 
-// Resolvi mostrar recursão com um exemplo simples
-// de rendimento composto mês a mês
+// Exemplo de recursão para rendimento composto mês a mês
 double deposito_recursivo_simulado(double saldo, double taxa, int meses) {
     if (meses <= 0) return saldo;
     return deposito_recursivo_simulado(saldo * (1 + taxa), taxa, meses - 1);
 }
 
-// Implementação do fluxo do cliente
+// Fluxo principal do cliente
 
-// Login do cliente: peço CPF (com máscara) e senha mascarada
-// e valido procurando no vetor de contas
+// Login do cliente: CPF (com máscara) e senha mascarada
+// Validação realizada buscando no vetor de contas
 int login(Conta *contas, int total, int *outIdx) {
     char cpf_digitado[15];
     char senha_digitada[20];

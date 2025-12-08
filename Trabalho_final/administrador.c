@@ -7,8 +7,8 @@
 #include "administrador.h"
 #include "unir.h"
 
-// Aqui eu recebo da main os ponteiros (vetor/total/capacidade)
-// Usei uma lista encadeada simples para mapear os índices de contas bloqueadas
+// O main passa os ponteiros para as funções
+// Lista encadeada simples para índices de contas bloqueadas
 typedef struct NoBloq {
     int idx;
     struct NoBloq *prox;
@@ -36,7 +36,7 @@ static void liberarListaBloqueadas(NoBloq *head) {
     }
 }
 
-// Coloquei uma matriz dinâmica 2x2 só para cobrir o tópico de alocação
+// Matriz dinâmica mínima (2x2) apenas para cobrir o tópico
 static void adminMatrizDinamicaPequena(void) {
     int linhas = 2, colunas = 2;
     int **m = (int **)malloc((size_t)linhas * sizeof(int *));
@@ -56,22 +56,22 @@ static void adminMatrizDinamicaPequena(void) {
     free(m);
 }
 
-// As macros de flags estão declaradas em banco.h
+// flag macros are declared in banco.h
 
-// Exemplo: aplicar uma operação em cada conta via ponteiro de função
+// Aplica uma operação a cada conta (exemplo de ponteiro para função que recebe Conta*)
 static void adminAplicarACadaConta(Conta *contas, int total, void (*op)(Conta *)) __attribute__((unused));
 static void adminAplicarACadaConta(Conta *contas, int total, void (*op)(Conta *)) {
     if (!op) return;
     for (int i = 0; i < total; i++) op(&contas[i]);
 }
 
-// Autentico o administrador (usei usuário/senha fixos para este trabalho)
+// Autentica o administrador: usuário e senha fixos por enquanto
 int adminAutenticar(void) {
     char user[64];
     char pass[64];
     // Nota: não limpar stdin aqui — a leitura do menu principal usa fgets
     cabecalho("AUTENTICACAO - ADMINISTRADOR");
-    barraCarregamento("Preparando tela administrativa", 400);
+    barraCarregamento("Preparando tela administrativa", 500);
     printf("Usuario: ");
     if (fgets(user, sizeof(user), stdin) == NULL) return 0;
     user[strcspn(user, "\n")] = '\0';
@@ -79,7 +79,7 @@ int adminAutenticar(void) {
     lerSenhamascarada(pass, sizeof(pass));
 
     if (strcmp(user, "ane") == 0 && strcmp(pass, "admin") == 0) {
-        barraCarregamento("Validando credenciais", 400);
+        barraCarregamento("Validando credenciais", 500);
         msgSucesso("Autenticado com sucesso!");
         return 1;
     }
@@ -87,10 +87,10 @@ int adminAutenticar(void) {
     return 0;
 }
 
-// Crio uma nova conta (id automático, CPF e senha validados)
+// Função auxiliar para criar uma nova conta
 void adminCriarConta(Conta *contas, int *total) {
     cabecalho("CRIAR CONTA (ADMIN)");
-    barraCarregamento("Carregando tela de criacao", 400);
+    barraCarregamento("Carregando tela de criacao", 500);
 
     printf("\n");
 
@@ -126,10 +126,6 @@ void adminCriarConta(Conta *contas, int *total) {
         if (validarCPF(buffer)) {
             char dig[16];
             apenasDigitos(buffer, dig);
-            if (buscarIndicePorCPF(contas, *total, dig) != -1) {
-                msgErro("CPF ja cadastrado.");
-                continue;
-            }
             strncpy(contas[*total].cpf, dig, sizeof(contas[*total].cpf)-1);
             contas[*total].cpf[sizeof(contas[*total].cpf)-1] = '\0';
             break;
@@ -161,31 +157,31 @@ void adminCriarConta(Conta *contas, int *total) {
     contas[*total].flags = 0; // inicializa flags (nenhuma flag ativa)
 
     (*total)++;
-    barraCarregamento("Salvando nova conta", 500);
+    barraCarregamento("Salvando nova conta", 600);
 
     char buf[64]; snprintf(buf, sizeof(buf), "Conta criada. Id: %d", contas[*total - 1].id);
     msgSucesso(buf);
 }
 
-// Predicados de exemplo para filtros (mantive internos)
+// Predicados de exemplo (internos)
 // Callback typedef para filtros
 typedef int (*ContaFiltro)(const Conta *c);
 
-// Filtros que separei para listar ativas/bloqueadas
+// Exemplos de filtros (mantidos para eventual extensão)
 static int filtroAtivas(const Conta *c) { return !(c->flags & FLAG_BLOQUEADA); }
 static int filtroBloqueadas(const Conta *c) { return (c->flags & FLAG_BLOQUEADA) != 0; }
 
-// Listo contas com um filtro opcional (se NULL, mostro todas)
+// Função para listar contas com filtro (callback). Se filtro == NULL, lista todas.
 void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
     cabecalho("CONTAS CADASTRADAS");
-    barraCarregamento("Carregando lista de contas", 500);
+    barraCarregamento("Carregando lista de contas", 600);
 
     if (total == 0) {
         msgErro("Nenhuma conta cadastrada.");
         return;
     }
 
-    // Construo a lista encadeada de bloqueadas (uso interno, sem saída)
+    // Construir lista encadeada de bloqueadas (uso interno, sem saída)
     NoBloq *bloq = construirListaBloqueadas(contas, total);
 
     for (Conta *p = contas; p < contas + total; p++) {
@@ -201,15 +197,15 @@ void adminListarContas(Conta *contas, int total, ContaFiltro filtro) {
         }
     }
 
-    // Libero a lista encadeada
+    // Libera lista encadeada
     liberarListaBloqueadas(bloq);
 }
 
-// Bloqueio uma conta marcando a flag
+// Função para bloquear conta
 void adminBloquearConta(Conta *contas, int total) {
     int numero;
     cabecalho("BLOQUEAR CONTA");
-    barraCarregamento("Preparando bloqueio", 400);
+    barraCarregamento("Preparando bloqueio", 500);
     printf("Numero da conta: ");
     {
         char buf[64];
@@ -224,7 +220,7 @@ void adminBloquearConta(Conta *contas, int total) {
     for (int i = 0; i < total; i++) {
         if (contas[i].id == numero) {
             contas[i].flags |= FLAG_BLOQUEADA;
-            barraCarregamento("Aplicando bloqueio", 400);
+            barraCarregamento("Aplicando bloqueio", 500);
             char bbuf[64]; snprintf(bbuf, sizeof(bbuf), "Conta %d bloqueada.", numero);
             msgSucesso(bbuf);
             return;
@@ -234,11 +230,11 @@ void adminBloquearConta(Conta *contas, int total) {
     msgErro("Conta nao encontrada.");
 }
 
-// Desbloqueio uma conta limpando a flag
+// Função para desbloquear conta
 void adminDesbloquearConta(Conta *contas, int total) {
     int numero;
     cabecalho("DESBLOQUEAR CONTA");
-    barraCarregamento("Preparando desbloqueio", 400);
+    barraCarregamento("Preparando desbloqueio", 500);
     printf("Numero da conta: ");
     {
         char buf[64];
@@ -253,7 +249,7 @@ void adminDesbloquearConta(Conta *contas, int total) {
     for (int i = 0; i < total; i++) {
         if (contas[i].id == numero) {
             contas[i].flags &= (unsigned char)~FLAG_BLOQUEADA;
-            barraCarregamento("Removendo bloqueio", 400);
+            barraCarregamento("Removendo bloqueio", 500);
             char ubuf[64]; snprintf(ubuf, sizeof(ubuf), "Conta %d desbloqueada.", numero);
             msgSucesso(ubuf);
             return;
@@ -263,7 +259,7 @@ void adminDesbloquearConta(Conta *contas, int total) {
     msgErro("Conta nao encontrada.");
 }
 
-// Calculo o saldo total de forma recursiva
+// Função calcular o saldo total
 float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
     if (indice == total) {
         return 0.0f;
@@ -271,7 +267,7 @@ float adminCalcularSaldoTotalRecursivo(Conta *contas, int indice, int total) {
     return contas[indice].saldo + adminCalcularSaldoTotalRecursivo(contas, indice + 1, total);
 }
 
-// Menu principal do Administrador (opero criação/listagem/bloqueio/salvar/carregar)
+// Função principal do menu do administrador
 void adminMenu(Conta **contas, int *total, int *capacidade) {
     int opcao;
 
@@ -333,12 +329,8 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 break;
             case 8: {
                 const char *fn = "contas.dat";
-                if (salvarDados(*contas, *total, fn)) {
-                    msgSucesso("Contas salvas com sucesso.");
-                    printInfo(fn);
-                } else {
-                    msgErro("Erro ao salvar contas.");
-                }
+                if (salvarDados(*contas, *total, fn)) printf("Contas salvas em %s\n", fn);
+                else printf("Erro ao salvar contas.\n");
                 break;
             }
             case 9: {
@@ -346,14 +338,8 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 if (carregarDados(contas, total, capacidade, fn)) {
                     // ajustar capacidade para pelo menos total (carregarDados já atualiza capacidade)
                     if (*capacidade < *total) *capacidade = *total;
-                    {
-                        char buf[96]; snprintf(buf, sizeof(buf), "Contas carregadas (total=%d)", *total);
-                        msgSucesso(buf);
-                        printInfo(fn);
-                    }
-                } else {
-                    msgErro("Erro ao carregar contas ou arquivo inexistente.");
-                }
+                    printf("Contas carregadas de %s (total=%d)\n", fn, *total);
+                } else printf("Erro ao carregar contas ou arquivo inexistente.\n");
                 break;
             }
             case 10: {
@@ -373,10 +359,9 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
                 if (!lerInteiro("Numero da conta: ", &numero)) { printf("Entrada invalida.\n"); break; }
                 for (int i = 0; i < *total; i++) {
                     if ((*contas)[i].id == numero) {
-                        printf("Conta %d - FLAG_PREMIUM=%s, FLAG_EMAIL_VERIFIED=%s\n",
+                           printf("Conta %d - FLAG_PREMIUM=%s\n",
                                numero,
-                               ((*contas)[i].flags & FLAG_PREMIUM) ? "SIM" : "NAO",
-                               ((*contas)[i].flags & FLAG_EMAIL_VERIFIED) ? "SIM" : "NAO");
+                               ((*contas)[i].flags & FLAG_PREMIUM) ? "SIM" : "NAO");
                         break;
                     }
                 }
@@ -396,7 +381,7 @@ void adminMenu(Conta **contas, int *total, int *capacidade) {
     } while (opcao != 0);
 }
 
-// Removo uma conta do vetor (procuro por id e faço o shift à esquerda)
+// Remove uma conta do vetor: procura por id, move elementos à esquerda e decrementa total
 void adminRemoverConta(Conta **contas, int *total) {
     if (!contas || !total || *total <= 0 || *contas == NULL) {
         printf("Nenhuma conta para remover.\n");

@@ -4,7 +4,7 @@
 #include <time.h>
 #include "banco.h"
 
-// Aqui eu gerencio a capacidade do vetor de contas (cliente/admin usam isso)
+// Rotina de gestão da capacidade do vetor de contas (utilizada por cliente/admin)
 int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
     if (necessario <= *refCapacidade) return 1;
     int nova = *refCapacidade;
@@ -19,7 +19,8 @@ int garantirCapacidade(Conta **refContas, int *refCapacidade, int necessario) {
     return 1;
 }
 
-// Persistência: aqui eu salvo os dados em um arquivo binário
+
+// Persistência: salvamento dos dados em arquivo binário
 int salvarDados(const Conta *contas, int total, const char *arquivo) {
     if (!arquivo) return 0;
     FILE *f = fopen(arquivo, "wb");
@@ -39,7 +40,7 @@ int salvarDados(const Conta *contas, int total, const char *arquivo) {
     return 1;
 }
 
-// Carregamento: aqui eu leio do binário e reconstruo o vetor em memória
+// Carregamento: leitura do binário e reconstrução do vetor em memória
 int carregarDados(Conta **outContas, int *outTotal, int *outCapacidade, const char *arquivo) {
     if (!outContas || !outTotal || !arquivo) return 0;
     
@@ -77,14 +78,14 @@ int carregarDados(Conta **outContas, int *outTotal, int *outCapacidade, const ch
     *outContas = tmp;
     *outTotal = n;
     
-    // IMPORTANTE: Atualiza a capacidade para ser igual ao total carregado
-    // Assim o próximo realloc sabe de onde partir
+    // Atualiza a capacidade para ser igual ao total carregado,
+    // permitindo que o próximo realloc tenha referência correta
     if(outCapacidade) *outCapacidade = n; 
 
     return 1;
 }
 
-// Registro de log: anoto operações com data/hora em um .txt (append)
+// Registro de log: anotação de operações com data/hora em arquivo texto (append)
 void registrarLog(int idConta, const char *descricao) {
     if (!descricao) return;
     FILE *f = fopen("log.txt", "a");
@@ -93,7 +94,7 @@ void registrarLog(int idConta, const char *descricao) {
     time_t t = time(NULL);
     struct tm tmv;
     
-    // Optei por um tratamento de hora cross-platform (Windows/Linux)
+    // Tratamento de hora cross-platform (Windows/Linux)
     #if defined(_MSC_VER)
         localtime_s(&tmv, &t);
     #else

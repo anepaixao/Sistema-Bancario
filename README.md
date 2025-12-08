@@ -55,7 +55,8 @@ typedef struct {
 Flags principais (em `banco.h`):
 - `FLAG_BLOQUEADA` (bit 0)
 - `FLAG_PREMIUM` (bit 1)
-- `FLAG_EMAIL_VERIFIED` (bit 2)
+ - `FLAG_PREMIUM` (bit 1)
+ 
 
 No módulo do cliente (`cliente.c`) também uso bits adicionais (4-6) para configurações (ex.: notificações/“transações noturnas”).
 

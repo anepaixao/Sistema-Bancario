@@ -6,26 +6,25 @@
 #include <string.h>
 #include "banco.h"
 
-// Cabeçalho do módulo do cliente — aqui eu exponho
-// as funções que a main usa para acessar o fluxo do cliente
+// Cabeçalho do módulo do cliente — funções expostas para acesso pela main
 void clienteMenu(Conta **contas, int *total, int *capacidade);
 void clienteCriarConta(Conta **contas, int *total, int *capacidade);
 
-// Internas do módulo (telas/fluxo). Uso dentro do próprio cliente
+// Internas do módulo (telas/fluxo), utilizadas dentro do próprio cliente
 
 int login(Conta *contas, int total, int *outIdx);
 int tela_principal(Conta *contas, int total, int idx);
 
-// Operações financeiras básicas do dia a dia
+// Operações financeiras básicas
 void deposito(Conta *c, double valor);
 void saque(Conta *c, double valor);
 void transferencia_bancaria(Conta *contas, int total, int idx);
 
-// Extras que incluí para enriquecer o trabalho (configurações, simulação)
+// Extras para enriquecer o projeto (configurações, simulação)
 void outras_opcoes(Conta *c);
 double deposito_recursivo_simulado(double saldo, double taxa, int meses);
 
-// Funções puramente visuais para o terminal (apoio/ilustração)
+// Funções visuais para o terminal (apoio/ilustração)
 void boleto(void);
 void qr_code(void);
 

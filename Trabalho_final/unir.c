@@ -12,7 +12,7 @@
 #include "banco.h"
 
 // Leitura mascarada do CPF com toggle (TAB):
-// Optei por mostrar só o primeiro e o último dígito; TAB alterna visibilidade
+// Exibe apenas o primeiro e o último dígito; TAB alterna visibilidade
 void lerCPFmascarado(char *out, size_t size) {
 #ifdef _WIN32
     char buf[32] = {0};
@@ -57,7 +57,7 @@ void lerCPFmascarado(char *out, size_t size) {
     strncpy(out, buf, size-1); out[size-1] = '\0';
     printf("\n");
 #else
-    // POSIX: leitura char-a-char com termios e toggle via TAB
+    // POSIX: leitura caractere a caractere com termios e alternância via TAB
     #include <termios.h>
     #include <unistd.h>
     struct termios oldt, newt;
@@ -111,7 +111,7 @@ void lerCPFmascarado(char *out, size_t size) {
 #endif
 }
 
-// Leitura mascarada da senha com toggle (TAB) — uso asteriscos por padrão
+// Leitura mascarada da senha com toggle (TAB) — exibição padrão com asteriscos
 void lerSenhamascarada(char *out, size_t size) {
 #ifdef _WIN32
     char buf[64] = {0};
@@ -145,7 +145,7 @@ void lerSenhamascarada(char *out, size_t size) {
     strncpy(out, buf, size-1); out[size-1] = '\0';
     printf("\n");
 #else
-    // POSIX: leitura char-a-char com termios e toggle via TAB
+    // POSIX: leitura caractere a caractere com termios e alternância via TAB
     #include <termios.h>
     #include <unistd.h>
     struct termios oldt, newt;
@@ -200,16 +200,16 @@ void lerSenhamascarada(char *out, size_t size) {
 
 static int stdin_is_tty(void) {
 #if defined(_WIN32) || defined(_WIN64)
-    // On Windows, assume interactive in typical usage (avoids toolchain-specific fileno/_fileno issues)
+    // Em Windows, assume terminal interativo (evita questões específicas de fileno/_fileno)
     return 1;
 #else
     return isatty(fileno(stdin));
 #endif
 }
 
-// Minhas funções de TUI (visual) para deixar tudo padronizado
+// Funções de TUI (visual) para padronização da interface
 
-// Desenho o cabeçalho com o logo do C-Bank
+// Cabeçalho com o logo do C-Bank
 void cabecalho(const char *titulo) {
     limparTela();
     
@@ -245,7 +245,7 @@ void apenasDigitos(const char *src, char *dst) {
     dst[j] = '\0';
 }
 
-// Removo o \n do final (mantive este nome por compatibilidade)
+// Remove o \n do final (nome mantido por compatibilidade)
 void trimNewline(char *s) {
     if (!s) return;
     size_t i = strlen(s);
@@ -253,7 +253,7 @@ void trimNewline(char *s) {
     if (s[i-1] == '\n') s[i-1] = '\0';
 }
 
-// Alias para a mesma função (mantive por retrocompatibilidade)
+// Alias para a mesma função (mantido por retrocompatibilidade)
 void removerQuebraLinha(char *s) {
     trimNewline(s);
 }
@@ -269,7 +269,7 @@ void limparTela(void) {
 }
 
 void pausarTela(void) {
-    // Se stdin não é um terminal (ex.: redirecionado), não pausar
+    // Evita pausa quando stdin não é terminal (ex.: redirecionado)
     if (!stdin_is_tty()) return;
     printf("\n%sPressione ENTER para continuar...%s", COR_AMARELO, COR_RESET);
     char buf[64];
@@ -279,13 +279,13 @@ void pausarTela(void) {
 }
 
 void limparEntrada(void) {
-    // Se stdin não é um terminal, nada a limpar
+    // Não há limpeza quando stdin não é terminal
     if (!stdin_is_tty()) return;
     int c;
     while ((c = getchar()) != '\n' && c != EOF) {}
 }
 
-// Validações que uso em vários pontos (CPF e senha)
+// Validações reutilizadas (CPF e senha)
 
 int validarCPF(const char *cpf) {
     if (!cpf) return 0;
@@ -330,7 +330,7 @@ int senhaValidaNDigitos(const char *senha, int n) {
     return 1;
 }
 
-// Exibo CPF mascarado na tela: começo e fim visíveis, meio com '*'
+// Exibição de CPF mascarado: início e fim visíveis, meio com '*'
 void mascararCPF(const char *cpf, char *out, size_t size) {
     if (!out || size == 0) return;
     if (!cpf) { out[0] = '\0'; return; }
@@ -409,7 +409,7 @@ int lerDouble(const char *prompt, double *out) {
     return 1;
 }
 
-// Implementação dos helpers visuais (mensagens, barra, caixas)
+// Implementação dos utilitários visuais (mensagens, barra, caixas)
 void printSuccess(const char *fmt, ...) {
     va_list ap;
     printf("%s", COR_VERDE);
